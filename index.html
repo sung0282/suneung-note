@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="수능노트">
+  <link rel="manifest" href="manifest.json">
+  <title>2027 수능 학습 노트</title>
+  <style>
+    :root {
+      --korean: #c62828;
+      --math: #1565c0;
+      --english: #2e7d32;
+      --science: #6a1b9a;
+      --home: #37474f;
+      --bg: #f2f2f7;
+      --surface: #ffffff;
+      --surface2: #f9f9f9;
+      --text: #1c1c1e;
+      --text2: #6e6e73;
+      --border: #e0e0e5;
+      --radius: 14px;
+      --shadow: 0 2px 16px rgba(0,0,0,0.07);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: calc(60px + var(--safe-bottom));
+      overflow-x: hidden;
+    }
+
+    /* ─── HEADER ─── */
+    .app-header {
+      background: var(--surface);
+      padding: calc(14px + var(--safe-top)) 16px 10px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .header-left { display: flex; align-items: baseline; gap: 8px; }
+    .header-year { font-size: 12px; font-weight: 700; color: var(--text2); letter-spacing: 0.5px; text-transform: uppercase; }
+    .header-title { font-size: 19px; font-weight: 700; }
+
+    .header-actions { display: flex; gap: 8px; }
+    .icon-btn {
+      background: var(--bg);
+      border: none;
+      border-radius: 50%;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.15s;
+    }
+    .icon-btn:active { background: var(--border); }
+
+    /* ─── SUBJECT TABS ─── */
+    .subject-tabs {
+      background: var(--surface);
+      display: flex;
+      gap: 6px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+      position: sticky;
+      top: calc(51px + var(--safe-top));
+      z-index: 150;
+    }
+    .subject-tabs::-webkit-scrollbar { display: none; }
+
+    .stab {
+      flex-shrink: 0;
+      padding: 7px 15px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text2);
+      transition: all 0.2s;
+    }
+    .stab.active { color: #fff; border-color: transparent; }
+    .stab[data-page="home"].active    { background: var(--home); }
+    .stab[data-page="korean"].active  { background: var(--korean); }
+    .stab[data-page="math"].active    { background: var(--math); }
+    .stab[data-page="english"].active { background: var(--english); }
+    .stab[data-page="science"].active { background: var(--science); }
+
+    /* ─── PAGES ─── */
+    .page { display: none; padding: 16px; max-width: 820px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* ─── SUB TABS ─── */
+    .sub-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .sub-tabs::-webkit-scrollbar { display: none; }
+    .subtab {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 10px;
+      border: none;
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all 0.2s;
+    }
+    .subtab.active { color: #fff; }
+    .korean .subtab.active  { background: var(--korean); }
+    .math .subtab.active    { background: var(--math); }
+    .english .subtab.active { background: var(--english); }
+    .science .subtab.active { background: var(--science); }
+
+    /* ─── HOME PAGE ─── */
+    .home-greeting {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .home-date { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .subject-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .subject-card:active { transform: scale(0.97); }
+    .subject-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+    .subject-card.korean::before  { background: var(--korean); }
+    .subject-card.math::before    { background: var(--math); }
+    .subject-card.english::before { background: var(--english); }
+    .subject-card.science::before { background: var(--science); }
+
+    .sc-icon { font-size: 28px; margin-bottom: 8px; }
+    .sc-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .sc-count { font-size: 12px; color: var(--text2); }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .see-all { font-size: 13px; font-weight: 500; color: var(--math); cursor: pointer; }
+
+    /* ─── ENTRY CARDS ─── */
+    .entry-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform 0.1s;
+      border-left: 4px solid transparent;
+    }
+    .entry-card:active { transform: scale(0.99); }
+    .entry-card.korean  { border-left-color: var(--korean); }
+    .entry-card.math    { border-left-color: var(--math); }
+    .entry-card.english { border-left-color: var(--english); }
+    .entry-card.biology { border-left-color: var(--science); }
+    .entry-card.earth   { border-left-color: #7b1fa2; }
+
+    .ec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+    .ec-title { font-size: 15px; font-weight: 600; }
+    .ec-date { font-size: 11px; color: var(--text2); flex-shrink: 0; margin-left: 8px; }
+    .ec-subtitle { font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+    .ec-preview { font-size: 13px; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    .ec-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .ec-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text2);
+      font-weight: 500;
+    }
+
+    .difficulty {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .difficulty.hard   { background: #fce4e4; color: #c62828; }
+    .difficulty.medium { background: #fff3e0; color: #e65100; }
+    .difficulty.easy   { background: #e8f5e9; color: #2e7d32; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text2);
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; }
+
+    /* ─── FAB ─── */
+    .fab {
+      position: fixed;
+      bottom: calc(20px + var(--safe-bottom));
+      right: 20px;
+      width: 56px; height: 56px;
+      border-radius: 28px;
+      border: none;
+      background: var(--math);
+      color: white;
+      font-size: 26px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      z-index: 100;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .fab:active { transform: scale(0.93); }
+    .fab.korean  { background: var(--korean); }
+    .fab.math    { background: var(--math); }
+    .fab.english { background: var(--english); }
+    .fab.science { background: var(--science); }
+    .fab.hidden  { display: none; }
+
+    /* ─── MODAL ─── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 820px;
+      max-height: 92vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      padding-bottom: var(--safe-bottom);
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal-handle {
+      width: 36px; height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 10px auto 0;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 10;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      background: var(--bg);
+      border: none;
+      border-radius: 50%;
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text2);
+    }
+    .modal-body { padding: 16px; }
+
+    /* ─── DETAIL MODAL ─── */
+    .detail-field { margin-bottom: 20px; }
+    .detail-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .detail-value { font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+    .detail-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-danger {
+      flex: 1; padding: 13px;
+      background: #fce4e4; color: var(--korean);
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    .btn-edit {
+      flex: 1; padding: 13px;
+      background: var(--bg); color: var(--text);
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+
+    .detail-image {
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 8px;
+      max-height: 400px;
+      object-fit: contain;
+      background: var(--bg);
+    }
+
+    /* ─── FORMS ─── */
+    .form-field { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--surface2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--math); background: var(--surface); }
+    .form-textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+    .form-textarea.large { min-height: 200px; }
+    .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+    .image-upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .image-upload-area:hover { border-color: var(--math); background: #f0f4ff; }
+    .image-upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 32px; margin-bottom: 6px; }
+    .upload-text { font-size: 14px; color: var(--text2); }
+
+    .image-preview-wrap { position: relative; }
+    .image-preview-wrap img { width: 100%; border-radius: 10px; max-height: 300px; object-fit: contain; background: var(--bg); }
+    .remove-image-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .form-submit {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+    .form-submit:active { opacity: 0.8; }
+    .form-submit.korean  { background: var(--korean); }
+    .form-submit.math    { background: var(--math); }
+    .form-submit.english { background: var(--english); }
+    .form-submit.science { background: var(--science); }
+
+    /* ─── GRAMMAR REFERENCE ─── */
+    .grammar-search {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .grammar-search input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      background: var(--surface);
+      outline: none;
+    }
+    .grammar-search input:focus { border-color: var(--korean); }
+
+    .grammar-category {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 16px 0 8px;
+    }
+
+    .grammar-rule-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      border-left: 4px solid var(--korean);
+      transition: transform 0.1s;
+    }
+    .grammar-rule-card:active { transform: scale(0.99); }
+    .grammar-rule-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .grammar-rule-preview { font-size: 13px; color: var(--text2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .grammar-rule-examples { font-size: 12px; color: var(--english); margin-top: 4px; }
+
+    /* ─── EXPORT/IMPORT ─── */
+    .data-actions {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+    }
+    .data-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .data-btn.export { background: #e3f2fd; color: var(--math); }
+    .data-btn.import { background: #e8f5e9; color: var(--english); }
+
+    /* ─── SEARCH ─── */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 10px 14px;
+      gap: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .search-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 15px;
+      outline: none;
+      color: var(--text);
+    }
+    .search-icon { color: var(--text2); font-size: 16px; }
+
+    /* ─── STATS BAR ─── */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-chip {
+      flex: 1;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .stat-num { font-size: 22px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: var(--text2); font-weight: 500; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (min-width: 600px) {
+      .subject-grid { grid-template-columns: repeat(4, 1fr); }
+      .form-row { display: flex; gap: 12px; }
+      .form-row .form-field { flex: 1; }
+    }
+
+    /* ─── UTILS ─── */
+    .mt-4 { margin-top: 16px; }
+    .text-secondary { color: var(--text2); font-size: 13px; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      background: var(--bg);
+      color: var(--text2);
+    }
+    .badge.custom { background: #fce4e4; color: var(--korean); }
+
+    .no-entries { text-align: center; padding: 40px 16px; color: var(--text2); }
+    .no-entries-icon { font-size: 42px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-left">
+    <span class="header-year">2027 수능</span>
+    <span class="header-title">학습 노트</span>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" onclick="openDataModal()" title="데이터 관리">💾</button>
+  </div>
+</header>
+
+<!-- SUBJECT TABS -->
+<div class="subject-tabs">
+  <button class="stab active" data-page="home">🏠 홈</button>
+  <button class="stab" data-page="korean">국어</button>
+  <button class="stab" data-page="math">수학</button>
+  <button class="stab" data-page="english">영어</button>
+  <button class="stab" data-page="science">과학탐구</button>
+</div>
+
+<!-- ══════ HOME PAGE ══════ -->
+<div id="page-home" class="page active">
+  <div class="home-greeting" id="home-greeting">안녕하세요!</div>
+  <div class="home-date" id="home-date"></div>
+
+  <div class="stats-row" id="home-stats"></div>
+
+  <div class="subject-grid">
+    <div class="subject-card korean" onclick="goTo('korean')">
+      <div class="sc-icon">📖</div>
+      <div class="sc-name">국어</div>
+      <div class="sc-count" id="count-korean">0개의 항목</div>
+    </div>
+    <div class="subject-card math" onclick="goTo('math')">
+      <div class="sc-icon">📐</div>
+      <div class="sc-name">수학</div>
+      <div class="sc-count" id="count-math">0개의 항목</div>
+    </div>
+    <div class="subject-card english" onclick="goTo('english')">
+      <div class="sc-icon">🌐</div>
+      <div class="sc-name">영어</div>
+      <div class="sc-count" id="count-english">0개의 항목</div>
+    </div>
+    <div class="subject-card science" onclick="goTo('science')">
+      <div class="sc-icon">🔬</div>
+      <div class="sc-name">과학탐구</div>
+      <div class="sc-count" id="count-science">0개의 항목</div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    최근 학습
+    <span class="see-all"></span>
+  </div>
+  <div id="recent-entries"></div>
+</div>
+
+<!-- ══════ 국어 PAGE ══════ -->
+<div id="page-korean" class="page korean">
+  <div class="sub-tabs">
+    <button class="subtab active" data-subtab="vocab" onclick="setSubTab('korean','vocab',this)">어휘</button>
+    <button class="subtab" data-subtab="passage" onclick="setSubTab('korean','passage',this)">지문 분석</button>
+    <button class="subtab" data-subtab="grammar" onclick="setSubTab('korean','grammar',this)">언어와 매체</button>
+  </div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-korean" placeholder="검색..." oninput="renderSubject('korean')">
+  </div>
+  <div id="content-korean"></div>
+</div>
+
+<!-- ══════ 수학 PAGE ══════ -->
+<div id="page-math" class="page math">
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-math" placeholder="문제 검색..." oninput="renderSubject('math')">
+  </div>
+  <div id="content-math"></div>
+</div>
+
+<!-- ══════ 영어 PAGE ══════ -->
+<div id="page-english" class="page english">
+  <div class="sub-tabs">
+    <button class="subtab active" data-subtab="vocab" onclick="setSubTab('english','vocab',this)">어휘</button>
+    <button class="subtab" data-subtab="passage" onclick="setSubTab('english','passage',this)">지문 분석</button>
+  </div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-english" placeholder="검색..." oninput="renderSubject('english')">
+  </div>
+  <div id="content-english"></div>
+</div>
+
+<!-- ══════ 과학탐구 PAGE ══════ -->
+<div id="page-science" class="page science">
+  <div class="sub-tabs">
+    <button class="subtab active" data-subtab="biology" onclick="setSubTab('science','biology',this)">생명과학 I</button>
+    <button class="subtab" data-subtab="earth" onclick="setSubTab('science','earth',this)">지구과학 I</button>
+  </div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-science" placeholder="문제 검색..." oninput="renderSubject('science')">
+  </div>
+  <div id="content-science"></div>
+</div>
+
+<!-- ══════ FAB ══════ -->
+<button class="fab hidden" id="fab" onclick="openAddModal()">＋</button>
+
+<!-- ══════ MODAL OVERLAY ══════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">새 항목</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// DATA LAYER
+// ══════════════════════════════════════════
+
+const STORE_KEY = 'suneung_notes_v1';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    korean: { vocab: [], passage: [], grammar: [] },
+    math: { problems: [] },
+    english: { vocab: [], passage: [] },
+    science: { biology: [], earth: [] }
+  };
+}
+
+function saveData(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+
+function getDB() { return loadData(); }
+
+function addEntry(subject, type, entry) {
+  const db = getDB();
+  entry.id = Date.now().toString();
+  entry.created = new Date().toISOString();
+  db[subject][type].push(entry);
+  saveData(db);
+  return entry;
+}
+
+function updateEntry(subject, type, id, updates) {
+  const db = getDB();
+  const idx = db[subject][type].findIndex(e => e.id === id);
+  if (idx !== -1) {
+    db[subject][type][idx] = { ...db[subject][type][idx], ...updates, updated: new Date().toISOString() };
+    saveData(db);
+  }
+}
+
+function deleteEntry(subject, type, id) {
+  const db = getDB();
+  db[subject][type] = db[subject][type].filter(e => e.id !== id);
+  saveData(db);
+}
+
+// ══════════════════════════════════════════
+// APP STATE
+// ══════════════════════════════════════════
+
+const state = {
+  currentPage: 'home',
+  subTabs: { korean: 'vocab', math: 'problems', english: 'vocab', science: 'biology' },
+  editingId: null
+};
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+
+function goTo(page) {
+  // Update tabs
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.stab[data-page="${page}"]`).classList.add('active');
+
+  // Update pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+
+  state.currentPage = page;
+
+  // FAB
+  const fab = document.getElementById('fab');
+  if (page === 'home') {
+    fab.classList.add('hidden');
+  } else {
+    fab.classList.remove('hidden');
+    fab.className = `fab ${page === 'science' ? 'science' : page}`;
+  }
+
+  renderSubject(page);
+}
+
+function setSubTab(subject, tab, el) {
+  state.subTabs[subject] = tab;
+  el.closest('.sub-tabs').querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderSubject(subject);
+}
+
+// ══════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════
+
+function renderHome() {
+  const db = getDB();
+
+  // Greeting
+  const hour = new Date().getHours();
+  const greet = hour < 6 ? '새벽에도 열공 중!' : hour < 12 ? '좋은 아침이에요!' : hour < 18 ? '오늘도 화이팅!' : '저녁에도 열심히!';
+  document.getElementById('home-greeting').textContent = greet;
+
+  // Date
+  const today = new Date();
+  document.getElementById('home-date').textContent = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  // Stats
+  const totalVocab = db.korean.vocab.length + db.english.vocab.length;
+  const totalProblems = db.math.problems.length + db.science.biology.length + db.science.earth.length;
+  const totalPassages = db.korean.passage.length + db.english.passage.length;
+  const totalGrammar = db.korean.grammar.length;
+  document.getElementById('home-stats').innerHTML = `
+    <div class="stat-chip"><div class="stat-num">${totalVocab}</div><div class="stat-label">어휘</div></div>
+    <div class="stat-chip"><div class="stat-num">${totalProblems}</div><div class="stat-label">문제</div></div>
+    <div class="stat-chip"><div class="stat-num">${totalPassages}</div><div class="stat-label">지문</div></div>
+    <div class="stat-chip"><div class="stat-num">${totalGrammar}</div><div class="stat-label">문법</div></div>
+  `;
+
+  // Subject counts
+  document.getElementById('count-korean').textContent = `${db.korean.vocab.length + db.korean.passage.length + db.korean.grammar.length}개의 항목`;
+  document.getElementById('count-math').textContent = `${db.math.problems.length}개의 문제`;
+  document.getElementById('count-english').textContent = `${db.english.vocab.length + db.english.passage.length}개의 항목`;
+  document.getElementById('count-science').textContent = `${db.science.biology.length + db.science.earth.length}개의 문제`;
+
+  // Recent entries
+  const all = [
+    ...db.korean.vocab.map(e => ({ ...e, subject: 'korean', type: 'vocab', typeLabel: '국어 어휘' })),
+    ...db.korean.passage.map(e => ({ ...e, subject: 'korean', type: 'passage', typeLabel: '국어 지문' })),
+    ...db.korean.grammar.map(e => ({ ...e, subject: 'korean', type: 'grammar', typeLabel: '언어와 매체' })),
+    ...db.math.problems.map(e => ({ ...e, subject: 'math', type: 'problems', typeLabel: '수학' })),
+    ...db.english.vocab.map(e => ({ ...e, subject: 'english', type: 'vocab', typeLabel: '영어 어휘' })),
+    ...db.english.passage.map(e => ({ ...e, subject: 'english', type: 'passage', typeLabel: '영어 지문' })),
+    ...db.science.biology.map(e => ({ ...e, subject: 'science', type: 'biology', typeLabel: '생명과학 I' })),
+    ...db.science.earth.map(e => ({ ...e, subject: 'science', type: 'earth', typeLabel: '지구과학 I' })),
+  ].sort((a, b) => new Date(b.created) - new Date(a.created)).slice(0, 10);
+
+  const container = document.getElementById('recent-entries');
+  if (all.length === 0) {
+    container.innerHTML = `<div class="no-entries"><div class="no-entries-icon">📝</div><p>아직 기록이 없어요.<br>각 과목 탭에서 공부 내용을 추가해보세요!</p></div>`;
+  } else {
+    container.innerHTML = all.map(e => renderEntryCard(e, e.subject, e.type)).join('');
+  }
+}
+
+function renderSubject(subject) {
+  if (subject === 'home') { renderHome(); return; }
+
+  const db = getDB();
+  const container = document.getElementById(`content-${subject}`);
+  const search = (document.getElementById(`search-${subject}`)?.value || '').toLowerCase();
+
+  if (subject === 'math') {
+    const entries = db.math.problems.filter(e => matchSearch(e, search));
+    container.innerHTML = entries.length === 0
+      ? emptyState('📐', search ? '검색 결과가 없어요' : '문제를 추가해보세요')
+      : entries.sort(byDate).map(e => renderEntryCard(e, 'math', 'problems')).join('');
+    return;
+  }
+
+  const tab = state.subTabs[subject];
+
+  if (subject === 'korean') {
+    if (tab === 'grammar') {
+      renderGrammarSection(container, db, search);
+    } else {
+      const entries = db.korean[tab].filter(e => matchSearch(e, search));
+      container.innerHTML = entries.length === 0
+        ? emptyState(tab === 'vocab' ? '📖' : '📄', search ? '검색 결과가 없어요' : '항목을 추가해보세요')
+        : entries.sort(byDate).map(e => renderEntryCard(e, 'korean', tab)).join('');
+    }
+  } else if (subject === 'english') {
+    const entries = db.english[tab].filter(e => matchSearch(e, search));
+    container.innerHTML = entries.length === 0
+      ? emptyState(tab === 'vocab' ? '🌐' : '📄', search ? '검색 결과가 없어요' : '항목을 추가해보세요')
+      : entries.sort(byDate).map(e => renderEntryCard(e, 'english', tab)).join('');
+  } else if (subject === 'science') {
+    const sciTab = state.subTabs.science;
+    const entries = db.science[sciTab].filter(e => matchSearch(e, search));
+    container.innerHTML = entries.length === 0
+      ? emptyState('🔬', search ? '검색 결과가 없어요' : '문제를 추가해보세요')
+      : entries.sort(byDate).map(e => renderEntryCard(e, 'science', sciTab)).join('');
+  }
+}
+
+function byDate(a, b) { return new Date(b.created) - new Date(a.created); }
+
+function matchSearch(entry, q) {
+  if (!q) return true;
+  return JSON.stringify(entry).toLowerCase().includes(q);
+}
+
+function emptyState(icon, msg) {
+  return `<div class="no-entries"><div class="no-entries-icon">${icon}</div><p>${msg}</p></div>`;
+}
+
+function renderEntryCard(entry, subject, type) {
+  const colorClass = subject === 'science' ? type : subject;
+  const dateStr = entry.created ? new Date(entry.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+
+  let title = '', subtitle = '', preview = '', extra = '';
+
+  if (type === 'vocab') {
+    title = entry.word || '';
+    subtitle = entry.pronunciation ? `[${entry.pronunciation}]` : '';
+    preview = entry.meaning || '';
+    if (entry.source) extra = `<span class="ec-tag">${esc(entry.source)}</span>`;
+  } else if (type === 'passage') {
+    title = entry.title || '제목 없음';
+    preview = entry.analysis || entry.text || '';
+  } else if (type === 'grammar') {
+    title = entry.name || '';
+    subtitle = entry.category || '';
+    preview = entry.description || '';
+    if (entry.isBuiltin) extra = `<span class="badge">기본 규칙</span>`;
+    else extra = `<span class="badge custom">직접 추가</span>`;
+  } else if (type === 'problems') {
+    title = entry.title || '제목 없음';
+    preview = entry.problem || '';
+    if (entry.difficulty) {
+      const d = entry.difficulty;
+      const label = d === 'hard' ? '어려움' : d === 'medium' ? '보통' : '쉬움';
+      extra = `<span class="difficulty ${d}">${label}</span>`;
+    }
+    if (entry.concepts) entry.concepts.split(',').forEach(c => {
+      if (c.trim()) extra += ` <span class="ec-tag">${esc(c.trim())}</span>`;
+    });
+  } else if (type === 'biology' || type === 'earth') {
+    title = entry.title || '제목 없음';
+    preview = entry.problem || '';
+    if (entry.difficulty) {
+      const d = entry.difficulty;
+      const label = d === 'hard' ? '어려움' : d === 'medium' ? '보통' : '쉬움';
+      extra = `<span class="difficulty ${d}">${label}</span>`;
+    }
+  }
+
+  return `<div class="entry-card ${colorClass}" onclick="openDetail('${subject}','${type}','${entry.id}')">
+    <div class="ec-header">
+      <span class="ec-title">${esc(title)}</span>
+      <span class="ec-date">${dateStr}</span>
+    </div>
+    ${subtitle ? `<div class="ec-subtitle">${esc(subtitle)}</div>` : ''}
+    ${preview ? `<div class="ec-preview">${esc(preview)}</div>` : ''}
+    ${extra ? `<div class="ec-tags">${extra}</div>` : ''}
+  </div>`;
+}
+
+function renderGrammarSection(container, db, search) {
+  const allGrammar = [...BUILTIN_GRAMMAR.map(r => ({ ...r, isBuiltin: true })), ...db.korean.grammar.map(r => ({ ...r, isBuiltin: false }))];
+  const filtered = allGrammar.filter(r => matchSearch(r, search));
+
+  if (filtered.length === 0) {
+    container.innerHTML = emptyState('📚', search ? '검색 결과가 없어요' : '문법 규칙을 추가해보세요');
+    return;
+  }
+
+  // Group by category
+  const grouped = {};
+  filtered.forEach(r => {
+    const cat = r.category || '기타';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(r);
+  });
+
+  let html = '';
+  for (const [cat, rules] of Object.entries(grouped)) {
+    html += `<div class="grammar-category">${esc(cat)}</div>`;
+    rules.forEach(r => {
+      html += `<div class="grammar-rule-card" onclick="openDetail('korean','grammar','${r.id || r.name}')">
+        <div class="ec-header">
+          <span class="grammar-rule-name">${esc(r.name)}</span>
+          ${r.isBuiltin ? '<span class="badge">기본</span>' : '<span class="badge custom">직접 추가</span>'}
+        </div>
+        <div class="grammar-rule-preview">${esc(r.description || '')}</div>
+        ${r.examples && r.examples.length > 0 ? `<div class="grammar-rule-examples">예) ${r.examples.slice(0,3).map(esc).join(', ')}</div>` : ''}
+      </div>`;
+    });
+  }
+  container.innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════
+
+function openModal(title, bodyHtml) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+  state.editingId = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ── ADD MODAL ──
+
+function openAddModal() {
+  const subject = state.currentPage;
+  const tab = state.subTabs[subject] || 'problems';
+  state.editingId = null;
+  showAddForm(subject, tab, null);
+}
+
+function showAddForm(subject, type, existingData) {
+  const isEdit = !!existingData;
+
+  if (subject === 'math' || (subject === 'science')) {
+    const sciType = subject === 'science' ? state.subTabs.science : 'problems';
+    const actualType = subject === 'math' ? 'problems' : sciType;
+    openModal(isEdit ? '문제 수정' : '새 문제 추가', problemForm(subject, actualType, existingData));
+  } else if (subject === 'korean') {
+    const tab = isEdit ? type : state.subTabs.korean;
+    if (tab === 'vocab') openModal(isEdit ? '어휘 수정' : '새 어휘 추가', vocabForm('korean', existingData));
+    else if (tab === 'passage') openModal(isEdit ? '지문 분석 수정' : '새 지문 분석 추가', passageForm('korean', existingData));
+    else if (tab === 'grammar') openModal(isEdit ? '문법 규칙 수정' : '새 문법 규칙 추가', grammarForm(existingData));
+  } else if (subject === 'english') {
+    const tab = isEdit ? type : state.subTabs.english;
+    if (tab === 'vocab') openModal(isEdit ? '어휘 수정' : '새 어휘 추가', vocabForm('english', existingData));
+    else if (tab === 'passage') openModal(isEdit ? '지문 분석 수정' : '새 지문 분석 추가', passageForm('english', existingData));
+  }
+}
+
+function v(id) { return document.getElementById(id)?.value || ''; }
+
+// ── VOCAB FORM ──
+function vocabForm(subject, data) {
+  const isEng = subject === 'english';
+  const c = subject;
+  return `
+    <div class="form-field"><label class="form-label">${isEng ? '단어 / 표현' : '어휘'}*</label>
+      <input class="form-input" id="f-word" value="${esc(data?.word||'')}" placeholder="${isEng ? 'vocabulary' : '어휘를 입력하세요'}"></div>
+    ${isEng ? `<div class="form-field"><label class="form-label">발음 기호</label><input class="form-input" id="f-pron" value="${esc(data?.pronunciation||'')}" placeholder="[prəˌnʌnsiˈeɪʃən]"></div>` : ''}
+    <div class="form-field"><label class="form-label">뜻*</label>
+      <textarea class="form-textarea" id="f-meaning" placeholder="뜻을 입력하세요">${esc(data?.meaning||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">예문</label>
+      <textarea class="form-textarea" id="f-example" placeholder="지문에서 가져온 예문">${esc(data?.example||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">출처 (지문명/교재명)</label>
+      <input class="form-input" id="f-source" value="${esc(data?.source||'')}" placeholder="예) 2024년 11월 모의고사 34번 지문"></div>
+    <button class="form-submit ${c}" onclick="submitVocab('${subject}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
+}
+
+function submitVocab(subject, editId) {
+  const word = v('f-word').trim();
+  const meaning = v('f-meaning').trim();
+  if (!word || !meaning) return alert('어휘와 뜻은 필수입니다.');
+  const entry = { word, meaning, pronunciation: v('f-pron').trim(), example: v('f-example').trim(), source: v('f-source').trim() };
+  if (editId) updateEntry(subject, 'vocab', editId, entry);
+  else addEntry(subject, 'vocab', entry);
+  closeModal();
+  renderSubject(subject);
+  if (state.currentPage === 'home') renderHome();
+}
+
+// ── PASSAGE FORM ──
+function passageForm(subject, data) {
+  const c = subject;
+  return `
+    <div class="form-field"><label class="form-label">지문 제목*</label>
+      <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="예) 2024 수능 34번 지문"></div>
+    <div class="form-field"><label class="form-label">지문 원문 / 핵심 내용</label>
+      <textarea class="form-textarea large" id="f-text" placeholder="지문 내용 또는 핵심 단락을 입력하세요">${esc(data?.text||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">이해하지 못했던 문장</label>
+      <textarea class="form-textarea large" id="f-hard" placeholder="분석이 필요한 문장들을 입력하세요 (줄바꿈으로 구분)">${esc(data?.hardSentences||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">분석 / 풀이</label>
+      <textarea class="form-textarea large" id="f-analysis" placeholder="각 문장의 분석, 구문 설명, 핵심 논지 등">${esc(data?.analysis||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">출처</label>
+      <input class="form-input" id="f-source" value="${esc(data?.source||'')}" placeholder="예) 2024년 수능 34번"></div>
+    <button class="form-submit ${c}" onclick="submitPassage('${subject}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
+}
+
+function submitPassage(subject, editId) {
+  const title = v('f-title').trim();
+  if (!title) return alert('제목은 필수입니다.');
+  const entry = { title, text: v('f-text').trim(), hardSentences: v('f-hard').trim(), analysis: v('f-analysis').trim(), source: v('f-source').trim() };
+  if (editId) updateEntry(subject, 'passage', editId, entry);
+  else addEntry(subject, 'passage', entry);
+  closeModal();
+  renderSubject(subject);
+  if (state.currentPage === 'home') renderHome();
+}
+
+// ── GRAMMAR FORM ──
+function grammarForm(data) {
+  const cats = ['음운 변동', '단어 형성', '품사', '문장 성분', '피동·사동', '높임법', '시제·상·서법', '표기법', '기타'];
+  return `
+    <div class="form-field"><label class="form-label">규칙 이름*</label>
+      <input class="form-input" id="f-name" value="${esc(data?.name||'')}" placeholder="예) 비음화, 파생어 형성"></div>
+    <div class="form-field"><label class="form-label">카테고리</label>
+      <select class="form-select" id="f-cat">
+        ${cats.map(c => `<option value="${c}" ${data?.category===c?'selected':''}>${c}</option>`).join('')}
+      </select></div>
+    <div class="form-field"><label class="form-label">규칙 설명*</label>
+      <textarea class="form-textarea large" id="f-desc" placeholder="규칙을 상세히 설명하세요">${esc(data?.description||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">예시 (줄바꿈으로 구분)</label>
+      <textarea class="form-textarea" id="f-ex" placeholder="예) 국물[궁물]&#10;신라[실라]">${esc((data?.examples||[]).join('\n'))}</textarea></div>
+    <div class="form-field"><label class="form-label">출처 / 참고 조항</label>
+      <input class="form-input" id="f-src" value="${esc(data?.sourceRef||'')}" placeholder="예) 표준 발음법 제18항, 국립국어원 온라인 가나다"></div>
+    <button class="form-submit korean" onclick="submitGrammar('${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
+}
+
+function submitGrammar(editId) {
+  const name = v('f-name').trim();
+  const description = v('f-desc').trim();
+  if (!name || !description) return alert('이름과 설명은 필수입니다.');
+  const examples = v('f-ex').split('\n').map(s => s.trim()).filter(Boolean);
+  const entry = { name, category: v('f-cat'), description, examples, sourceRef: v('f-src').trim() };
+  if (editId) updateEntry('korean', 'grammar', editId, entry);
+  else addEntry('korean', 'grammar', entry);
+  closeModal();
+  renderSubject('korean');
+  if (state.currentPage === 'home') renderHome();
+}
+
+// ── PROBLEM FORM (수학 / 과학) ──
+function problemForm(subject, type, data) {
+  const c = subject === 'science' ? 'science' : 'math';
+  return `
+    <div class="form-field"><label class="form-label">문제 제목*</label>
+      <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="예) 2024 수능 21번, EBS 수학1 p.45 예제"></div>
+    <div class="form-field"><label class="form-label">문제 내용</label>
+      <textarea class="form-textarea large" id="f-problem" placeholder="문제 지문, 조건, 그래프 설명 등을 적어주세요">${esc(data?.problem||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">문제 이미지 (그래프, 도표, 문제 스캔)</label>
+      <div class="image-upload-area" id="upload-area">
+        <input type="file" accept="image/*" onchange="handleImageUpload(event)">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">탭하여 이미지 추가</div>
+      </div>
+      <div id="img-preview" style="margin-top:8px">${data?.image ? `<div class="image-preview-wrap"><img src="${data.image}" id="preview-img"><button class="remove-image-btn" onclick="removeImage()">✕</button></div>` : ''}</div>
+    </div>
+    <div class="form-field"><label class="form-label">풀이 과정*</label>
+      <textarea class="form-textarea large" id="f-solution" placeholder="단계별 풀이 과정을 상세히 작성하세요">${esc(data?.solution||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">핵심 개념 / 단원 (쉼표로 구분)</label>
+      <input class="form-input" id="f-concepts" value="${esc(data?.concepts||'')}" placeholder="예) 로그함수, 지수부등식, 미적분"></div>
+    <div class="form-field"><label class="form-label">난이도</label>
+      <select class="form-select" id="f-diff">
+        <option value="easy" ${data?.difficulty==='easy'?'selected':''}>쉬움</option>
+        <option value="medium" ${(!data || data?.difficulty==='medium')?'selected':''}>보통</option>
+        <option value="hard" ${data?.difficulty==='hard'?'selected':''}>어려움</option>
+      </select></div>
+    <div class="form-field"><label class="form-label">오답 노트 / 메모</label>
+      <textarea class="form-textarea" id="f-memo" placeholder="틀린 이유, 다시 볼 포인트, 추가 메모">${esc(data?.memo||'')}</textarea></div>
+    <button class="form-submit ${c}" onclick="submitProblem('${subject}','${type}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
+}
+
+let pendingImage = null;
+
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    // Compress image
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = h * MAX / w; w = MAX; }
+      if (h > MAX) { w = w * MAX / h; h = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      pendingImage = canvas.toDataURL('image/jpeg', 0.8);
+      document.getElementById('img-preview').innerHTML = `<div class="image-preview-wrap"><img src="${pendingImage}" id="preview-img"><button class="remove-image-btn" onclick="removeImage()">✕</button></div>`;
+      document.getElementById('upload-area').style.display = 'none';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  pendingImage = null;
+  document.getElementById('img-preview').innerHTML = '';
+  document.getElementById('upload-area').style.display = '';
+}
+
+function submitProblem(subject, type, editId) {
+  const title = v('f-title').trim();
+  if (!title) return alert('제목은 필수입니다.');
+  const imageData = pendingImage || (editId ? (() => {
+    const db = getDB();
+    const list = subject === 'math' ? db.math.problems : db.science[type];
+    const existing = list.find(e => e.id === editId);
+    return existing?.image || null;
+  })() : null);
+  const entry = {
+    title,
+    problem: v('f-problem').trim(),
+    solution: v('f-solution').trim(),
+    concepts: v('f-concepts').trim(),
+    difficulty: v('f-diff'),
+    memo: v('f-memo').trim(),
+    image: imageData
+  };
+  if (editId) updateEntry(subject, type, editId, entry);
+  else addEntry(subject, type, entry);
+  pendingImage = null;
+  closeModal();
+  renderSubject(subject);
+  if (state.currentPage === 'home') renderHome();
+}
+
+// ══════════════════════════════════════════
+// DETAIL VIEW
+// ══════════════════════════════════════════
+
+function openDetail(subject, type, id) {
+  // Check builtin grammar
+  if (type === 'grammar') {
+    const builtin = BUILTIN_GRAMMAR.find(r => r.name === id);
+    if (builtin) { showGrammarDetail({ ...builtin, isBuiltin: true }); return; }
+  }
+
+  const db = getDB();
+  let entry = null;
+  if (subject === 'math') entry = db.math.problems.find(e => e.id === id);
+  else if (subject === 'science') entry = (db.science[type] || []).find(e => e.id === id);
+  else entry = (db[subject][type] || []).find(e => e.id === id);
+
+  if (!entry) return;
+
+  if (type === 'vocab') showVocabDetail(entry, subject);
+  else if (type === 'passage') showPassageDetail(entry, subject);
+  else if (type === 'grammar') showGrammarDetail({ ...entry, isBuiltin: false });
+  else showProblemDetail(entry, subject, type);
+}
+
+function field(label, value) {
+  if (!value) return '';
+  return `<div class="detail-field"><div class="detail-label">${label}</div><div class="detail-value">${esc(value)}</div></div>`;
+}
+
+function showVocabDetail(e, subject) {
+  const body = `
+    ${field('어휘', e.word)}
+    ${e.pronunciation ? field('발음', e.pronunciation) : ''}
+    ${field('뜻', e.meaning)}
+    ${field('예문', e.example)}
+    ${field('출처', e.source)}
+    ${field('등록일', new Date(e.created).toLocaleDateString('ko-KR'))}
+    <div class="detail-actions">
+      <button class="btn-edit" onclick="editEntry('${subject}','vocab','${e.id}')">수정</button>
+      <button class="btn-danger" onclick="confirmDelete('${subject}','vocab','${e.id}')">삭제</button>
+    </div>`;
+  openModal(e.word || '어휘', body);
+}
+
+function showPassageDetail(e, subject) {
+  const body = `
+    ${field('제목', e.title)}
+    ${field('지문 내용', e.text)}
+    ${field('이해 못 한 문장', e.hardSentences)}
+    ${field('분석 / 풀이', e.analysis)}
+    ${field('출처', e.source)}
+    ${field('등록일', new Date(e.created).toLocaleDateString('ko-KR'))}
+    <div class="detail-actions">
+      <button class="btn-edit" onclick="editEntry('${subject}','passage','${e.id}')">수정</button>
+      <button class="btn-danger" onclick="confirmDelete('${subject}','passage','${e.id}')">삭제</button>
+    </div>`;
+  openModal(e.title || '지문', body);
+}
+
+function showGrammarDetail(r) {
+  const exHtml = r.examples && r.examples.length > 0
+    ? `<div class="detail-field"><div class="detail-label">예시</div>${r.examples.map(ex => `<div class="detail-value" style="margin-bottom:4px">• ${esc(ex)}</div>`).join('')}</div>`
+    : '';
+  const srcHtml = r.sourceRef ? field('출처 / 참고', r.sourceRef) : '';
+  const actions = r.isBuiltin
+    ? `<p style="font-size:13px;color:var(--text2);text-align:center;margin-top:16px">기본 제공 규칙입니다</p>`
+    : `<div class="detail-actions">
+        <button class="btn-edit" onclick="editEntry('korean','grammar','${r.id}')">수정</button>
+        <button class="btn-danger" onclick="confirmDelete('korean','grammar','${r.id}')">삭제</button>
+       </div>`;
+  const body = `
+    ${field('카테고리', r.category)}
+    ${field('규칙 설명', r.description)}
+    ${exHtml}
+    ${srcHtml}
+    ${actions}`;
+  openModal(r.name, body);
+}
+
+function showProblemDetail(e, subject, type) {
+  const diffLabel = e.difficulty === 'hard' ? '어려움' : e.difficulty === 'easy' ? '쉬움' : '보통';
+  const imgHtml = e.image ? `<div class="detail-field"><div class="detail-label">문제 이미지</div><img class="detail-image" src="${e.image}"></div>` : '';
+  const body = `
+    ${field('문제 내용', e.problem)}
+    ${imgHtml}
+    ${field('풀이 과정', e.solution)}
+    ${field('핵심 개념', e.concepts)}
+    ${e.difficulty ? `<div class="detail-field"><div class="detail-label">난이도</div><span class="difficulty ${e.difficulty}">${diffLabel}</span></div>` : ''}
+    ${field('오답 메모', e.memo)}
+    ${field('등록일', new Date(e.created).toLocaleDateString('ko-KR'))}
+    <div class="detail-actions">
+      <button class="btn-edit" onclick="editEntry('${subject}','${type}','${e.id}')">수정</button>
+      <button class="btn-danger" onclick="confirmDelete('${subject}','${type}','${e.id}')">삭제</button>
+    </div>`;
+  openModal(e.title || '문제', body);
+}
+
+function editEntry(subject, type, id) {
+  closeModal();
+  const db = getDB();
+  let entry = null;
+  if (subject === 'math') entry = db.math.problems.find(e => e.id === id);
+  else if (subject === 'science') {
+    const t = state.subTabs.science;
+    entry = (db.science[t] || db.science.biology).find(e => e.id === id);
+  }
+  else entry = (db[subject][type] || []).find(e => e.id === id);
+  if (!entry) return;
+  setTimeout(() => { state.editingId = id; showAddForm(subject, type, entry); }, 200);
+}
+
+function confirmDelete(subject, type, id) {
+  if (!confirm('정말 삭제할까요?')) return;
+  deleteEntry(subject, type, id);
+  closeModal();
+  renderSubject(subject);
+  renderHome();
+}
+
+// ══════════════════════════════════════════
+// DATA EXPORT / IMPORT
+// ══════════════════════════════════════════
+
+function openDataModal() {
+  openModal('데이터 관리', `
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px">
+      모든 공부 데이터를 JSON 파일로 내보내거나 가져올 수 있어요.<br>
+      여러 기기에서 같은 데이터를 사용하려면 내보낸 파일을 가져오세요.
+    </p>
+    <div style="display:flex;gap:10px;flex-direction:column">
+      <button class="form-submit math" onclick="exportData()">📤 데이터 내보내기 (JSON)</button>
+      <label style="display:block">
+        <input type="file" accept=".json" style="display:none" onchange="importData(event)">
+        <div class="form-submit english" style="text-align:center;cursor:pointer;padding:15px;border-radius:12px;font-size:16px;font-weight:700">📥 데이터 가져오기 (JSON)</div>
+      </label>
+      <button class="form-submit" style="background:#e53935" onclick="confirmClearAll()">🗑 모든 데이터 삭제</button>
+    </div>
+    <p style="font-size:12px;color:var(--text2);text-align:center;margin-top:16px">
+      저장 공간: ${getStorageSize()}
+    </p>
+  `);
+}
+
+function getStorageSize() {
+  const raw = localStorage.getItem(STORE_KEY) || '';
+  const kb = (raw.length * 2 / 1024).toFixed(1);
+  return `약 ${kb} KB 사용 중`;
+}
+
+function exportData() {
+  const data = localStorage.getItem(STORE_KEY) || '{}';
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `수능노트_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!confirm('현재 데이터를 덮어씁니다. 계속할까요?')) return;
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      closeModal();
+      renderHome();
+      alert('데이터를 성공적으로 가져왔습니다!');
+    } catch(err) {
+      alert('올바른 JSON 파일이 아닙니다.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmClearAll() {
+  if (!confirm('모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+  localStorage.removeItem(STORE_KEY);
+  closeModal();
+  renderHome();
+}
+
+// ══════════════════════════════════════════
+// HELPER
+// ══════════════════════════════════════════
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════
+// BUILT-IN GRAMMAR DATABASE (언어와 매체)
+// ══════════════════════════════════════════
+
+const BUILTIN_GRAMMAR = [
+  // ── 음운 변동 ──
+  { name: '음절의 끝소리 규칙', category: '음운 변동',
+    description: '음절 끝(받침)에 올 수 있는 자음은 ㄱ, ㄴ, ㄷ, ㄹ, ㅁ, ㅂ, ㅇ의 7개뿐이다. 겹받침이나 다른 자음이 음절 끝에 오면 위 7개 중 하나로 바뀌어 발음된다.',
+    examples: ['넋[넉]', '삶[삼]', '밖[박]', '낮[낟]', '꽃[꼳]', '앞[압]', '흙[흑]'],
+    sourceRef: '표준 발음법 제8항' },
+
+  { name: '연음 규칙(연음화)', category: '음운 변동',
+    description: '받침이 있는 음절 뒤에 모음으로 시작하는 형식 형태소(조사, 어미, 접미사)가 오면 받침이 뒤 음절의 초성으로 넘어가 발음된다.',
+    examples: ['꽃이[꼬치]', '먹어[머거]', '밥을[바블]', '닭이[달기]', '흙을[흘글]'],
+    sourceRef: '표준 발음법 제13항, 제14항' },
+
+  { name: '자음군 단순화', category: '음운 변동',
+    description: '겹받침이 음절 끝(뒤에 자음이 오거나 단어 끝)에 오면 두 자음 중 하나만 발음된다.',
+    examples: ['닭[닥]', '흙[흑]', '삶[삼]', '젊다[점따]', '읽다[익따]', '밟다[밥따]'],
+    sourceRef: '표준 발음법 제10항, 제11항' },
+
+  { name: '비음화', category: '음운 변동',
+    description: '파열음(ㄱ, ㄷ, ㅂ)이 비음(ㄴ, ㅁ) 앞에서 비음(ㅇ, ㄴ, ㅁ)으로 바뀌어 발음된다.',
+    examples: ['국물[궁물]', '먹는[멍는]', '밥물[밤물]', '닫는[단는]', '있는[인는]'],
+    sourceRef: '표준 발음법 제18항' },
+
+  { name: '유음화', category: '음운 변동',
+    description: 'ㄴ이 ㄹ의 앞이나 뒤에서 ㄹ로 바뀌어 발음된다.',
+    examples: ['신라[실라]', '천리[철리]', '난로[날로]', '설날[설랄]', '한라산[할라산]'],
+    sourceRef: '표준 발음법 제20항' },
+
+  { name: '구개음화', category: '음운 변동',
+    description: '받침 ㄷ, ㅌ이 모음 \'이\'로 시작하는 형식 형태소 앞에서 구개음 ㅈ, ㅊ으로 바뀌어 발음된다.',
+    examples: ['굳이[구지]', '미닫이[미다지]', '해돋이[해도지]', '같이[가치]', '붙이다[부치다]'],
+    sourceRef: '표준 발음법 제17항' },
+
+  { name: '경음화(된소리되기)', category: '음운 변동',
+    description: '받침 ㄱ, ㄷ, ㅂ 뒤에서 예사소리 ㄱ, ㄷ, ㅂ, ㅅ, ㅈ이 된소리로 발음된다. 또한 어간 받침 ㄴ(ㄵ), ㄼ 뒤나 관형사형 \'-(으)ㄹ\' 뒤에서도 된소리가 된다.',
+    examples: ['국밥[국빱]', '닭장[닥짱]', '밥상[밥쌍]', '갈등[갈뜽]', '할 것[할 껃]'],
+    sourceRef: '표준 발음법 제23항~제28항' },
+
+  { name: '격음화(거센소리되기)', category: '음운 변동',
+    description: '받침 ㄱ, ㄷ, ㅂ, ㅈ이 \'ㅎ\'과 만나거나 \'ㅎ\' 받침 뒤에 ㄱ, ㄷ, ㅈ이 오면 거센소리 ㅋ, ㅌ, ㅍ, ㅊ으로 바뀐다.',
+    examples: ['먹히다[머키다]', '맏형[마텽]', '좋다[조타]', '앉히다[안치다]', '넓히다[널피다]'],
+    sourceRef: '표준 발음법 제12항' },
+
+  { name: '\'ㄴ\' 첨가', category: '음운 변동',
+    description: '합성어 및 파생어에서 앞 단어나 접두사의 끝이 자음이고 뒤 단어나 접미사의 첫음절이 \'이, 야, 여, 요, 유\'인 경우 \'ㄴ\'이 첨가된다.',
+    examples: ['솜이불[솜니불]', '색연필[생년필]', '꽃잎[꼰닙]', '한여름[한녀름]', '직행열차[지캥녈차]'],
+    sourceRef: '표준 발음법 제29항' },
+
+  { name: '모음 조화', category: '음운 변동',
+    description: '양성 모음(ㅏ, ㅗ)은 양성 모음끼리, 음성 모음(ㅓ, ㅜ, ㅡ 등)은 음성 모음끼리 어울리는 현상. 주로 용언의 어미, 의성어·의태어에서 나타난다.',
+    examples: ['잡아(양성)', '먹어(음성)', '졸졸(양성)', '줄줄(음성)', '깜짝(양성) vs 껌적(음성)'],
+    sourceRef: '한국어 문법론' },
+
+  // ── 단어 형성 ──
+  { name: '합성어', category: '단어 형성',
+    description: '두 개 이상의 실질 형태소(어근)가 결합하여 이루어진 단어. 통사적 합성어(정상적인 어순)와 비통사적 합성어(비정상 어순)로 나뉜다.',
+    examples: ['돌다리(명+명)', '뛰어놀다(동+동)', '검붉다(형+형)', '높푸르다(비통사적)', '부슬비(비통사적)'],
+    sourceRef: '학교 문법' },
+
+  { name: '파생어', category: '단어 형성',
+    description: '어근에 접사(접두사 또는 접미사)가 붙어서 만들어진 단어.',
+    examples: ['풋사과(풋-+사과, 접두)', '덮개(-개, 접미)', '선생님(-님, 접미)', '맨발(맨-+발)', '지우개(-개)'],
+    sourceRef: '학교 문법' },
+
+  { name: '품사 통용', category: '단어 형성',
+    description: '하나의 단어가 문맥에 따라 두 가지 이상의 품사로 쓰이는 현상.',
+    examples: ['이것이 빠른 길이다(형용사) / 그녀는 빨리 달린다(부사)', '맑다(형용사) / 맑아라(감탄사적)', '불(명사) / 불이야(감탄사)'],
+    sourceRef: '학교 문법' },
+
+  // ── 품사 ──
+  { name: '9품사 체계', category: '품사',
+    description: '국어의 단어는 형태·기능·의미에 따라 9가지 품사로 분류된다: 명사, 대명사, 수사, 동사, 형용사, 관형사, 부사, 조사, 감탄사. 이 중 조사는 홀로 쓰이지 못하는 의존 형태소이다.',
+    examples: ['명사: 사람, 나무', '대명사: 나, 여기', '수사: 하나, 첫째', '동사: 먹다, 뛰다', '형용사: 예쁘다, 크다', '관형사: 새, 옛', '부사: 매우, 빨리', '조사: 이/가, 을/를', '감탄사: 아, 에구'],
+    sourceRef: '학교 문법' },
+
+  { name: '체언과 용언', category: '품사',
+    description: '체언(명사, 대명사, 수사)은 문장의 주체가 되는 말로 조사와 결합한다. 용언(동사, 형용사)은 서술어로 쓰이며 활용(어간+어미)을 통해 형태가 변한다.',
+    examples: ['체언: 사람이, 너를, 셋이', '동사: 먹-어(어간+어미)', '형용사: 예쁘-다', '형용사는 명령형·청유형 불가(예쁘어라 ✗)'],
+    sourceRef: '학교 문법' },
+
+  // ── 문장 성분 ──
+  { name: '7가지 문장 성분', category: '문장 성분',
+    description: '국어 문장 성분: ①주어(이/가, 께서) ②서술어 ③목적어(을/를) ④보어(이/가, 되다/아니다 앞) ⑤관형어 ⑥부사어 ⑦독립어',
+    examples: ['주어: 나는 간다', '목적어: 책을 읽는다', '보어: 물이 얼음이 되었다', '관형어: 예쁜 꽃', '부사어: 빠르게 달린다', '독립어: 야, 그 사람 왔어'],
+    sourceRef: '학교 문법' },
+
+  { name: '서술어 자릿수', category: '문장 성분',
+    description: '서술어가 필수적으로 요구하는 문장 성분의 수. 한 자리(주어만), 두 자리(주어+목적어/보어/부사어), 세 자리 서술어로 나뉜다.',
+    examples: ['한 자리: 꽃이 핀다', '두 자리: 영희가 밥을 먹는다', '두 자리(보어): 물이 얼음이 된다', '세 자리: 나는 그에게 선물을 주었다'],
+    sourceRef: '학교 문법' },
+
+  // ── 피동·사동 ──
+  { name: '피동 표현', category: '피동·사동',
+    description: '주어가 다른 주체에 의해 동작을 당하는 것을 나타냄. 단형 피동(접미사 -이-, -히-, -리-, -기-)과 장형 피동(-아/어지다, -게 되다)이 있다.',
+    examples: ['먹이다(능동) → 먹히다(피동)', '잡다 → 잡히다', '안다 → 안기다', '읽히다', '문이 닫혔다(-아/어지다)', '이중 피동 잘못: 보여지다(✗) → 보이다(○)'],
+    sourceRef: '학교 문법' },
+
+  { name: '사동 표현', category: '피동·사동',
+    description: '주어가 남에게 동작을 하도록 시키는 것을 나타냄. 단형 사동(접미사 -이-, -히-, -리-, -기-, -우-, -구-, -추-)과 장형 사동(-게 하다)이 있다.',
+    examples: ['먹다 → 먹이다(사동)', '입다 → 입히다', '울다 → 울리다', '남기다', '공부하게 하다(-게 하다)', '이중 사동 잘못: 먹이게 하다(✗)'],
+    sourceRef: '학교 문법' },
+
+  // ── 높임법 ──
+  { name: '높임법 체계', category: '높임법',
+    description: '①주체 높임(선어말어미 -시-): 동작 주체 높임 ②객체 높임(드리다, 여쭙다, 모시다): 목적어·부사어 대상 높임 ③상대 높임(종결어미): 청자 높임. 격식체(하십시오체, 하오체, 하게체, 해라체)와 비격식체(해요체, 해체).',
+    examples: ['주체: 선생님이 오셨다(-시-)', '객체: 할머니께 드렸다(드리다)', '상대(해요체): 갑니다 / 가요', '간접 높임: 어머니는 귀가 밝으세요(-시-)'],
+    sourceRef: '학교 문법' },
+
+  // ── 시제·상 ──
+  { name: '시제와 상', category: '시제·상·서법',
+    description: '시제: 과거(-았/었-), 현재(기본형), 미래(-겠-, -(으)ㄹ 것이다). 상(Aspect): 완료상(-아/어 있다), 진행상(-고 있다). 서법: 직설법, 의문법, 명령법, 청유법.',
+    examples: ['과거: 먹었다', '현재: 먹는다', '미래: 먹겠다 / 먹을 것이다', '진행: 먹고 있다', '완료: 앉아 있다', '추측: 먹을 것이다'],
+    sourceRef: '학교 문법' },
+
+  // ── 표기법 ──
+  { name: '한글 맞춤법 주요 원칙', category: '표기법',
+    description: '①소리 나는 대로 적되 어법에 맞게 표기(원형 밝히기). ②된소리: 두 모음 사이 \'ㄷ, ㄱ\' 뒤 된소리 된 경우 된소리 표기. ③사이시옷: 순우리말·한자어+우리말 합성어에서 뒷말 첫소리가 된소리로 나거나 \'ㄴ\' 소리 덧남.',
+    examples: ['원형 밝히기: 먹어(O) 머거(X)', '사이시옷: 냇가, 깻잎, 나룻배, 숫자(한자어 예외)', '된소리: 국밥, 닭장', '띄어쓰기: 의존명사 띄어 씀(것, 수, 만큼 등)'],
+    sourceRef: '한글 맞춤법, 표준 발음법' },
+];
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+
+document.querySelectorAll('.stab').forEach(tab => {
+  tab.addEventListener('click', () => goTo(tab.dataset.page));
+});
+
+renderHome();
+</script>
+</body>
+</html>
