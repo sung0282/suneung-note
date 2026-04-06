@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-title" content="수능노트">
   <link rel="manifest" href="manifest.json">
   <title>2027 수능 학습 노트</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
     :root {
       --korean: #c62828;
@@ -557,7 +559,8 @@
     <span class="header-title">학습 노트</span>
   </div>
   <div class="header-actions">
-    <button class="icon-btn" onclick="openDataModal()" title="데이터 관리">💾</button>
+    <span id="sync-status" style="font-size:12px;color:var(--text2);margin-right:4px"></span>
+  <button class="icon-btn" onclick="openDataModal()" title="데이터 관리">💾</button>
   </div>
 </header>
 
@@ -673,52 +676,79 @@
 
 <script>
 // ══════════════════════════════════════════
-// DATA LAYER
+// FIREBASE DATA LAYER
 // ══════════════════════════════════════════
 
-const STORE_KEY = 'suneung_notes_v1';
+const firebaseConfig = {
+  apiKey: "AIzaSyBXghYPyobX6DrRSwnIl0rcHXhGWFdOoos",
+  authDomain: "suneung-note.firebaseapp.com",
+  projectId: "suneung-note",
+  storageBucket: "suneung-note.firebasestorage.app",
+  messagingSenderId: "49029343751",
+  appId: "1:49029343751:web:c1e82bfd076334a47d18a2"
+};
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  return {
-    korean: { vocab: [], passage: [], grammar: [] },
-    math: { problems: [] },
-    english: { vocab: [], passage: [] },
-    science: { biology: [], earth: [] }
-  };
+firebase.initializeApp(firebaseConfig);
+const fsDB = firebase.firestore();
+
+let appData = {
+  korean: { vocab: [], passage: [], grammar: [] },
+  math: { problems: [] },
+  english: { vocab: [], passage: [] },
+  science: { biology: [], earth: [] }
+};
+
+function setSyncStatus(msg, color) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color || 'var(--text2)';
 }
 
-function saveData(data) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+function initFirestore() {
+  setSyncStatus('⏳ 불러오는 중...');
+  fsDB.collection('entries').onSnapshot(snapshot => {
+    appData = {
+      korean: { vocab: [], passage: [], grammar: [] },
+      math: { problems: [] },
+      english: { vocab: [], passage: [] },
+      science: { biology: [], earth: [] }
+    };
+    snapshot.forEach(doc => {
+      const data = { ...doc.data(), id: doc.id };
+      const { subject, type } = data;
+      if (appData[subject] && Array.isArray(appData[subject][type])) {
+        appData[subject][type].push(data);
+      }
+    });
+    setSyncStatus('✅ 동기화됨', '#2e7d32');
+    setTimeout(() => setSyncStatus(''), 2500);
+    renderHome();
+    renderSubject(state.currentPage);
+  }, err => {
+    setSyncStatus('❌ 연결 오류', '#c62828');
+    console.error('Firestore error:', err);
+  });
 }
 
-function getDB() { return loadData(); }
+function getDB() { return appData; }
 
-function addEntry(subject, type, entry) {
-  const db = getDB();
-  entry.id = Date.now().toString();
-  entry.created = new Date().toISOString();
-  db[subject][type].push(entry);
-  saveData(db);
-  return entry;
+async function addEntry(subject, type, entry) {
+  const docRef = fsDB.collection('entries').doc();
+  const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
+  await docRef.set(data);
+  return data;
 }
 
-function updateEntry(subject, type, id, updates) {
-  const db = getDB();
-  const idx = db[subject][type].findIndex(e => e.id === id);
-  if (idx !== -1) {
-    db[subject][type][idx] = { ...db[subject][type][idx], ...updates, updated: new Date().toISOString() };
-    saveData(db);
-  }
+async function updateEntry(subject, type, id, updates) {
+  await fsDB.collection('entries').doc(id).update({
+    ...updates,
+    updated: new Date().toISOString()
+  });
 }
 
-function deleteEntry(subject, type, id) {
-  const db = getDB();
-  db[subject][type] = db[subject][type].filter(e => e.id !== id);
-  saveData(db);
+async function deleteEntry(subject, type, id) {
+  await fsDB.collection('entries').doc(id).delete();
 }
 
 // ══════════════════════════════════════════
@@ -1024,16 +1054,15 @@ function vocabForm(subject, data) {
     <button class="form-submit ${c}" onclick="submitVocab('${subject}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
 
-function submitVocab(subject, editId) {
+async function submitVocab(subject, editId) {
   const word = v('f-word').trim();
   const meaning = v('f-meaning').trim();
   if (!word || !meaning) return alert('어휘와 뜻은 필수입니다.');
   const entry = { word, meaning, pronunciation: v('f-pron').trim(), example: v('f-example').trim(), source: v('f-source').trim() };
-  if (editId) updateEntry(subject, 'vocab', editId, entry);
-  else addEntry(subject, 'vocab', entry);
+  setSyncStatus('💾 저장 중...');
+  if (editId) await updateEntry(subject, 'vocab', editId, entry);
+  else await addEntry(subject, 'vocab', entry);
   closeModal();
-  renderSubject(subject);
-  if (state.currentPage === 'home') renderHome();
 }
 
 // ── PASSAGE FORM ──
@@ -1053,15 +1082,14 @@ function passageForm(subject, data) {
     <button class="form-submit ${c}" onclick="submitPassage('${subject}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
 
-function submitPassage(subject, editId) {
+async function submitPassage(subject, editId) {
   const title = v('f-title').trim();
   if (!title) return alert('제목은 필수입니다.');
   const entry = { title, text: v('f-text').trim(), hardSentences: v('f-hard').trim(), analysis: v('f-analysis').trim(), source: v('f-source').trim() };
-  if (editId) updateEntry(subject, 'passage', editId, entry);
-  else addEntry(subject, 'passage', entry);
+  setSyncStatus('💾 저장 중...');
+  if (editId) await updateEntry(subject, 'passage', editId, entry);
+  else await addEntry(subject, 'passage', entry);
   closeModal();
-  renderSubject(subject);
-  if (state.currentPage === 'home') renderHome();
 }
 
 // ── GRAMMAR FORM ──
@@ -1083,17 +1111,16 @@ function grammarForm(data) {
     <button class="form-submit korean" onclick="submitGrammar('${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
 
-function submitGrammar(editId) {
+async function submitGrammar(editId) {
   const name = v('f-name').trim();
   const description = v('f-desc').trim();
   if (!name || !description) return alert('이름과 설명은 필수입니다.');
   const examples = v('f-ex').split('\n').map(s => s.trim()).filter(Boolean);
   const entry = { name, category: v('f-cat'), description, examples, sourceRef: v('f-src').trim() };
-  if (editId) updateEntry('korean', 'grammar', editId, entry);
-  else addEntry('korean', 'grammar', entry);
+  setSyncStatus('💾 저장 중...');
+  if (editId) await updateEntry('korean', 'grammar', editId, entry);
+  else await addEntry('korean', 'grammar', entry);
   closeModal();
-  renderSubject('korean');
-  if (state.currentPage === 'home') renderHome();
 }
 
 // ── PROBLEM FORM (수학 / 과학) ──
@@ -1159,13 +1186,12 @@ function removeImage() {
   document.getElementById('upload-area').style.display = '';
 }
 
-function submitProblem(subject, type, editId) {
+async function submitProblem(subject, type, editId) {
   const title = v('f-title').trim();
   if (!title) return alert('제목은 필수입니다.');
   const imageData = pendingImage || (editId ? (() => {
-    const db = getDB();
-    const list = subject === 'math' ? db.math.problems : db.science[type];
-    const existing = list.find(e => e.id === editId);
+    const list = subject === 'math' ? appData.math.problems : appData.science[type];
+    const existing = (list || []).find(e => e.id === editId);
     return existing?.image || null;
   })() : null);
   const entry = {
@@ -1177,12 +1203,11 @@ function submitProblem(subject, type, editId) {
     memo: v('f-memo').trim(),
     image: imageData
   };
-  if (editId) updateEntry(subject, type, editId, entry);
-  else addEntry(subject, type, entry);
+  setSyncStatus('💾 저장 중...');
+  if (editId) await updateEntry(subject, type, editId, entry);
+  else await addEntry(subject, type, entry);
   pendingImage = null;
   closeModal();
-  renderSubject(subject);
-  if (state.currentPage === 'home') renderHome();
 }
 
 // ══════════════════════════════════════════
@@ -1297,12 +1322,11 @@ function editEntry(subject, type, id) {
   setTimeout(() => { state.editingId = id; showAddForm(subject, type, entry); }, 200);
 }
 
-function confirmDelete(subject, type, id) {
+async function confirmDelete(subject, type, id) {
   if (!confirm('정말 삭제할까요?')) return;
-  deleteEntry(subject, type, id);
+  setSyncStatus('🗑 삭제 중...');
+  await deleteEntry(subject, type, id);
   closeModal();
-  renderSubject(subject);
-  renderHome();
 }
 
 // ══════════════════════════════════════════
@@ -1310,66 +1334,75 @@ function confirmDelete(subject, type, id) {
 // ══════════════════════════════════════════
 
 function openDataModal() {
+  const total = Object.values(appData).reduce((s, sub) =>
+    s + Object.values(sub).reduce((s2, arr) => s2 + arr.length, 0), 0);
   openModal('데이터 관리', `
     <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px">
-      모든 공부 데이터를 JSON 파일로 내보내거나 가져올 수 있어요.<br>
-      여러 기기에서 같은 데이터를 사용하려면 내보낸 파일을 가져오세요.
+      ☁️ Firebase 클라우드에 저장 중 — 모든 기기에서 자동 동기화돼요.<br>
+      백업용으로 JSON 파일로 내보낼 수 있어요.
     </p>
     <div style="display:flex;gap:10px;flex-direction:column">
-      <button class="form-submit math" onclick="exportData()">📤 데이터 내보내기 (JSON)</button>
+      <button class="form-submit math" onclick="exportData()">📤 백업 내보내기 (JSON)</button>
       <label style="display:block">
         <input type="file" accept=".json" style="display:none" onchange="importData(event)">
-        <div class="form-submit english" style="text-align:center;cursor:pointer;padding:15px;border-radius:12px;font-size:16px;font-weight:700">📥 데이터 가져오기 (JSON)</div>
+        <div class="form-submit english" style="text-align:center;cursor:pointer;padding:15px;border-radius:12px;font-size:16px;font-weight:700">📥 백업 가져오기 (JSON)</div>
       </label>
       <button class="form-submit" style="background:#e53935" onclick="confirmClearAll()">🗑 모든 데이터 삭제</button>
     </div>
     <p style="font-size:12px;color:var(--text2);text-align:center;margin-top:16px">
-      저장 공간: ${getStorageSize()}
+      현재 저장된 항목: 총 <b>${total}개</b>
     </p>
   `);
 }
 
-function getStorageSize() {
-  const raw = localStorage.getItem(STORE_KEY) || '';
-  const kb = (raw.length * 2 / 1024).toFixed(1);
-  return `약 ${kb} KB 사용 중`;
-}
-
 function exportData() {
-  const data = localStorage.getItem(STORE_KEY) || '{}';
-  const blob = new Blob([data], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `수능노트_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `수능노트_백업_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-function importData(e) {
+async function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = async (ev) => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!confirm('현재 데이터를 덮어씁니다. 계속할까요?')) return;
-      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      if (!confirm('Firebase에 데이터를 추가합니다. 계속할까요?')) return;
+      setSyncStatus('📥 가져오는 중...');
+      const batch = fsDB.batch();
+      for (const [subject, types] of Object.entries(data)) {
+        for (const [type, entries] of Object.entries(types)) {
+          if (!Array.isArray(entries)) continue;
+          for (const entry of entries) {
+            const ref = fsDB.collection('entries').doc(entry.id || fsDB.collection('entries').doc().id);
+            batch.set(ref, { ...entry, subject, type });
+          }
+        }
+      }
+      await batch.commit();
       closeModal();
-      renderHome();
-      alert('데이터를 성공적으로 가져왔습니다!');
+      alert('✅ 데이터를 성공적으로 가져왔습니다!');
     } catch(err) {
       alert('올바른 JSON 파일이 아닙니다.');
+      console.error(err);
     }
   };
   reader.readAsText(file);
 }
 
-function confirmClearAll() {
-  if (!confirm('모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
-  localStorage.removeItem(STORE_KEY);
+async function confirmClearAll() {
+  if (!confirm('Firebase의 모든 데이터를 삭제할까요? 되돌릴 수 없습니다.')) return;
+  setSyncStatus('🗑 삭제 중...');
+  const snapshot = await fsDB.collection('entries').get();
+  const batch = fsDB.batch();
+  snapshot.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
   closeModal();
-  renderHome();
 }
 
 // ══════════════════════════════════════════
@@ -1513,7 +1546,8 @@ document.querySelectorAll('.stab').forEach(tab => {
   tab.addEventListener('click', () => goTo(tab.dataset.page));
 });
 
-renderHome();
+// Firebase 실시간 동기화 시작
+initFirestore();
 </script>
 </body>
 </html>
