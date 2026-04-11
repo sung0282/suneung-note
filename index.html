@@ -1398,19 +1398,37 @@ function getDB() { return appData; }
 async function addEntry(subject, type, entry) {
   const docRef = fsDB.collection('entries').doc();
   const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
-  await docRef.set(data);
+  // 로컬에 즉시 반영 (onSnapshot 오기 전에 바로 보이도록)
+  if (appData[subject] && Array.isArray(appData[subject][type])) {
+    appData[subject][type].push(data);
+  }
+  renderHome();
+  renderSubject(state.currentPage);
+  // Firestore에 비동기 저장
+  docRef.set(data);
   return data;
 }
 
 async function updateEntry(subject, type, id, updates) {
-  await fsDB.collection('entries').doc(id).update({
-    ...updates,
-    updated: new Date().toISOString()
-  });
+  const updated = { ...updates, updated: new Date().toISOString() };
+  // 로컬에 즉시 반영
+  if (appData[subject] && Array.isArray(appData[subject][type])) {
+    const idx = appData[subject][type].findIndex(e => e.id === id);
+    if (idx !== -1) appData[subject][type][idx] = { ...appData[subject][type][idx], ...updated };
+  }
+  renderHome();
+  renderSubject(state.currentPage);
+  fsDB.collection('entries').doc(id).update(updated);
 }
 
 async function deleteEntry(subject, type, id) {
-  await fsDB.collection('entries').doc(id).delete();
+  // 로컬에 즉시 반영
+  if (appData[subject] && Array.isArray(appData[subject][type])) {
+    appData[subject][type] = appData[subject][type].filter(e => e.id !== id);
+  }
+  renderHome();
+  renderSubject(state.currentPage);
+  fsDB.collection('entries').doc(id).delete();
 }
 
 // ══════════════════════════════════════════
@@ -3244,16 +3262,20 @@ function ebsMakeGroupHtml(groupId, label, words, isSearch, badgeColor) {
     ? `style="border-left:3px solid ${badgeColor};"`
     : '';
 
+  // 검색 중이면 그룹 자동으로 열기
+  const bodyOpen = isSearch ? ' open' : '';
+  const btnLabel = isSearch ? '－' : '＋';
+
   return `
     <div class="ebs-wordlist-group grammar-category">
       <div class="grammar-category-header" ${headerStyle} onclick="toggleEbsGroup('${groupId}')">
         <span class="grammar-category-label">${esc(label)}</span>
         <div class="grammar-category-meta">
           <span class="grammar-category-count">${words.length.toLocaleString()}개</span>
-          <button class="grammar-toggle-btn" id="ebs-wbtn-${groupId}">＋</button>
+          <button class="grammar-toggle-btn" id="ebs-wbtn-${groupId}">${btnLabel}</button>
         </div>
       </div>
-      <div class="ebs-wordlist-body" id="ebs-wbody-${groupId}">
+      <div class="ebs-wordlist-body${bodyOpen}" id="ebs-wbody-${groupId}">
         ${innerHtml}
       </div>
     </div>`;
