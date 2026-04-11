@@ -18,7 +18,7 @@
       --english: #6E9EB5;
       --science: #B8896B;
       --biology: #B8896B;
-      --earth: #8e88a3;
+      --earth: #422b23;
       --home: #43302E;
       --bg: #FFFCF1;
       --surface: #FAF5EC;
@@ -124,10 +124,10 @@
     .stab.active { color: #fff; border-color: transparent; }
     .stab[data-page="home"].active     { background: #43302E; }
     .stab[data-page="korean"].active   { background: #DAA38F; color: #43302E; }
-    .stab[data-page="english"].active  { background: #FED8A6; color: #43302E; }
-    .stab[data-page="math"].active     { background: #C9DCE6; color: #43302E; }
-    .stab[data-page="biology"].active  { background: #748DA4; color: #fff; }
-    .stab[data-page="earth"].active    { background: #8e88a3; color: #fff; }
+    .stab[data-page="english"].active  { background: #f7f3ed; color: #43302E; }
+    .stab[data-page="math"].active     { background: #efd8d6; color: #43302E; }
+    .stab[data-page="biology"].active  { background: #c2c6b9; color: #43302E; }
+    .stab[data-page="earth"].active    { background: #422b23; color: #fff; }
     .stab[data-page="planner"].active  { background: #8A7A6E; color: #fff; }
 
     /* ─── PLANNER (redesigned) ─── */
@@ -326,28 +326,28 @@
     .subject-card:active { transform: scale(0.97); }
 
     .subject-card.korean  { background: #DAA38F; }
-    .subject-card.english { background: #FED8A6; }
-    .subject-card.math    { background: #C9DCE6; }
-    .subject-card.biology { background: #748DA4; }
-    .subject-card.earth   { background: #8e88a3; }
+    .subject-card.english { background: #f7f3ed; }
+    .subject-card.math    { background: #efd8d6; }
+    .subject-card.biology { background: #c2c6b9; }
+    .subject-card.earth   { background: #422b23; }
 
     /* 밝은 카드 — 어두운 텍스트 */
     .subject-card.korean .sc-label-top,
     .subject-card.english .sc-label-top,
-    .subject-card.math .sc-label-top { color: rgba(67,48,46,0.45); }
+    .subject-card.math .sc-label-top,
+    .subject-card.biology .sc-label-top { color: rgba(67,48,46,0.45); }
     .subject-card.korean .sc-name,
     .subject-card.english .sc-name,
-    .subject-card.math .sc-name { color: #43302E; }
+    .subject-card.math .sc-name,
+    .subject-card.biology .sc-name { color: #43302E; }
     .subject-card.korean .sc-count,
     .subject-card.english .sc-count,
-    .subject-card.math .sc-count { color: rgba(67,48,46,0.55); }
+    .subject-card.math .sc-count,
+    .subject-card.biology .sc-count { color: rgba(67,48,46,0.55); }
 
     /* 어두운 카드 — 흰 텍스트 */
-    .subject-card.biology .sc-label-top,
     .subject-card.earth .sc-label-top { color: rgba(255,255,255,0.55); }
-    .subject-card.biology .sc-name,
     .subject-card.earth .sc-name { color: #fff; }
-    .subject-card.biology .sc-count,
     .subject-card.earth .sc-count { color: rgba(255,255,255,0.65); }
 
     .sc-label-top {
@@ -438,7 +438,7 @@
     .entry-card.math::after    { background: var(--math); }
     .entry-card.english::after { background: var(--english); }
     .entry-card.biology::after { background: var(--science); }
-    .entry-card.earth::after   { background: #8e88a3; }
+    .entry-card.earth::after   { background: #422b23; }
 
     .ec-type-label {
       font-size: 10px;
