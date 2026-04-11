@@ -3263,17 +3263,41 @@ function renderEbsWordList(q) {
   const container = document.getElementById('ebs-wordlist-container');
   if (!container) return;
 
-  const query = (q || '').trim().toLowerCase();
+  // 최초 1회만 전체 구조(input + results) 생성
+  if (!container.querySelector('.ebs-wordlist-search')) {
+    container.innerHTML = `
+      <div class="ebs-wordlist-wrap">
+        <input class="ebs-wordlist-search" type="text"
+          placeholder="단어 검색... (예: assess, 평가)"
+          oninput="ebsWordSearch(this.value)">
+        <div id="ebs-wordlist-results"></div>
+      </div>`;
+  }
+
+  // 검색어 설정 (초기화 시에만 q를 덮어씀)
+  if (q !== undefined) {
+    const input = container.querySelector('.ebs-wordlist-search');
+    if (input && q === '') input.value = '';
+  }
+
+  ebsWordSearch(container.querySelector('.ebs-wordlist-search')?.value || '');
+}
+
+function ebsWordSearch(raw) {
+  const results = document.getElementById('ebs-wordlist-results');
+  if (!results) return;
+
+  const query = (raw || '').trim().toLowerCase();
   const isSearch = query.length > 0;
 
-  // ① '모르는 단어' (Firestore 저장분)
+  // ① '모르는 단어'
   const dunnoWords = getDB().english.vocab
     .filter(e => e.source === '모르는 단어' && (
       !query || (e.word||'').toLowerCase().includes(query) || (e.meaning||'').includes(query)
     ))
     .sort((a, b) => new Date(b.created) - new Date(a.created));
 
-  // ② EBS 수능특강 영어영역 / 수능특강 영어독해연습
+  // ② EBS 단어장 그룹
   const ebsGroups = EBS_SOURCES.map((name, srcIdx) => ({
     name,
     words: EBS_VOCAB.filter(v => v[2] === srcIdx && (
@@ -3283,7 +3307,6 @@ function renderEbsWordList(q) {
 
   const totalFiltered = dunnoWords.length + ebsGroups.reduce((s, g) => s + g.words.length, 0);
 
-  // 모르는 단어 삭제 버튼 포함 테이블 (Firestore 항목)
   let dunnoHtml = '';
   if (dunnoWords.length > 0) {
     const groupId = 'dunno';
@@ -3295,7 +3318,6 @@ function renderEbsWordList(q) {
           <button onclick="ebsDeleteDunno('${e.id}')" style="background:none;border:none;cursor:pointer;color:#EF5350;font-size:13px;padding:2px 4px;" title="삭제">✕</button>
         </td>
       </tr>`).join('');
-    const innerHtml = `<table class="ebs-word-table">${rows}</table>`;
     dunnoHtml = `
       <div class="ebs-wordlist-group grammar-category">
         <div class="grammar-category-header" style="border-left:3px solid #EF5350;" onclick="toggleEbsGroup('${groupId}')">
@@ -3307,7 +3329,7 @@ function renderEbsWordList(q) {
         </div>
         <div class="ebs-wordlist-body" id="ebs-wbody-${groupId}">
           <p style="font-size:11px;color:var(--text2);padding:6px 4px 2px;">'몰라요' 누른 단어가 자동 저장됩니다. ✕ 버튼으로 삭제 가능해요.</p>
-          ${innerHtml}
+          <table class="ebs-word-table">${rows}</table>
         </div>
       </div>`;
   }
@@ -3316,19 +3338,14 @@ function renderEbsWordList(q) {
     ebsMakeGroupHtml('src' + gIdx, g.name, g.words, isSearch, null)
   ).join('');
 
-  container.innerHTML = `
-    <div class="ebs-wordlist-wrap">
-      <input class="ebs-wordlist-search" type="text" placeholder="단어 검색... (예: assess, 평가)"
-        value="${esc(query)}" oninput="renderEbsWordList(this.value)">
-      ${totalFiltered === 0
-        ? `<div class="ebs-no-result">검색 결과가 없어요</div>`
-        : dunnoHtml + ebsHtml}
-    </div>`;
+  results.innerHTML = totalFiltered === 0
+    ? `<div class="ebs-no-result">검색 결과가 없어요</div>`
+    : dunnoHtml + ebsHtml;
 }
 
 async function ebsDeleteDunno(id) {
   await deleteEntry('english', 'vocab', id);
-  renderEbsWordList('');
+  ebsWordSearch(document.querySelector('.ebs-wordlist-search')?.value || '');
 }
 
 // ══════════════════════════════════════════
