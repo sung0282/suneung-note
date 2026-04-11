@@ -2185,11 +2185,26 @@ function problemForm(subject, type, data) {
     '3-2. 외계 행성계와 외계 생명체 탐사',
     '3-3. 외부 은하와 우주 팽창'
   ];
-  const categoryField = (subject === 'science' && type === 'earth') ? `
+  const bioCategories = [
+    '1. 생명과학의 이해',
+    '2-1. 생명 활동과 에너지',
+    '2-2. 물질대사와 건강',
+    '3-1. 자극의 전달',
+    '3-2. 신경계',
+    '3-3. 항상성',
+    '3-4. 방어 작용',
+    '4-1. 유전 정보와 염색체',
+    '4-2. 사람의 유전',
+    '4-3. 사람의 유전병',
+    '5-1. 생태계의 구성과 기능',
+    '5-2. 에너지 흐름과 물질 순환, 생물 다양성'
+  ];
+  const sciCats = type === 'earth' ? earthCategories : type === 'biology' ? bioCategories : null;
+  const categoryField = (subject === 'science' && sciCats) ? `
     <div class="form-field"><label class="form-label">카테고리</label>
       <select class="form-select" id="f-category">
         <option value="">-- 카테고리 선택 --</option>
-        ${earthCategories.map(cat => `<option value="${cat}" ${data?.category===cat?'selected':''}>${cat}</option>`).join('')}
+        ${sciCats.map(cat => `<option value="${cat}" ${data?.category===cat?'selected':''}>${cat}</option>`).join('')}
       </select></div>` : '';
   return `
     ${categoryField}
