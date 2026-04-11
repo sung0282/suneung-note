@@ -130,71 +130,132 @@
     .stab[data-page="earth"].active    { background: #395970; color: #fff; }
     .stab[data-page="planner"].active  { background: #8A7A6E; color: #fff; }
 
-    /* ─── PLANNER ─── */
-    .planner-date-header {
-      font-size: 18px; font-weight: 700; color: var(--text);
-      margin-bottom: 4px; letter-spacing: -0.3px;
-    }
-    .planner-date-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
-    .planner-add-row {
-      display: flex; gap: 8px; margin-bottom: 20px;
-    }
-    .planner-input {
-      flex: 1; padding: 11px 14px; border-radius: 12px;
-      border: 1.5px solid var(--border); background: var(--bg);
-      font-size: 15px; color: var(--text); font-family: inherit;
-    }
-    .planner-input:focus { outline: none; border-color: #8A7A6E; }
-    .planner-add-btn {
-      padding: 11px 18px; border-radius: 12px; border: none;
-      background: #8A7A6E; color: #fff; font-size: 15px;
-      font-weight: 700; cursor: pointer; font-family: inherit;
-      white-space: nowrap;
-    }
-    .planner-list { display: flex; flex-direction: column; gap: 10px; }
-    .planner-item {
-      display: flex; align-items: center; gap: 12px;
+    /* ─── PLANNER (redesigned) ─── */
+    .planner-cal {
       background: var(--surface); border-radius: 14px;
-      border: 1.5px solid var(--border); padding: 14px 16px;
-      transition: opacity 0.2s;
+      border: 1.5px solid #c6c09c; overflow: hidden; margin-bottom: 16px;
     }
-    .planner-item.done { opacity: 0.5; }
-    .planner-check {
-      width: 26px; height: 26px; border-radius: 50%;
-      border: 2px solid #8A7A6E; background: transparent;
-      cursor: pointer; flex-shrink: 0; display: flex;
-      align-items: center; justify-content: center;
-      font-size: 14px; transition: all 0.18s;
+    .planner-cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid #c6c09c;
     }
-    .planner-item.done .planner-check {
-      background: #8A7A6E; border-color: #8A7A6E; color: #fff;
+    .planner-cal-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+    .planner-cal-nav {
+      background: none; border: none; font-size: 22px; color: #c6c09c;
+      cursor: pointer; padding: 0 6px; line-height: 1; font-family: inherit;
     }
-    .planner-text {
-      flex: 1; font-size: 16px; color: var(--text); line-height: 1.4;
+    .planner-cal-days {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      padding: 6px 4px 4px; border-bottom: 1px solid rgba(198,192,156,0.4);
     }
-    .planner-item.done .planner-text {
-      text-decoration: line-through; color: var(--text2);
+    .planner-cal-dayname {
+      text-align: center; font-size: 11px; font-weight: 700;
+      color: #c6c09c; letter-spacing: 0.3px; padding: 2px 0;
     }
-    .planner-delete {
-      background: none; border: none; color: var(--border);
-      font-size: 16px; cursor: pointer; padding: 2px 4px;
-      flex-shrink: 0;
+    .planner-cal-dayname.sun { color: #C38380; }
+    .planner-cal-dayname.sat { color: var(--english); }
+    .planner-cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      padding: 4px 4px 8px; gap: 2px;
     }
-    .planner-delete:hover { color: #EF5350; }
-    .planner-summary {
-      text-align: center; padding: 12px; margin-bottom: 16px;
-      background: var(--surface); border-radius: 12px;
-      border: 1.5px solid var(--border); font-size: 14px; color: var(--text2);
+    .planner-cal-cell {
+      text-align: center; padding: 7px 2px; font-size: 13px;
+      color: var(--text); cursor: pointer; border-radius: 8px;
+      transition: background 0.15s; min-height: 30px;
     }
-    .planner-summary b { color: #8A7A6E; }
-    .planner-empty {
-      text-align: center; padding: 40px 20px;
-      color: var(--text2); font-size: 14px;
+    .planner-cal-cell:not(:empty):hover { background: rgba(198,192,156,0.2); }
+    .planner-cal-cell.today { font-weight: 700; color: #c6c09c; }
+    .planner-cal-cell.selected { background: #c6c09c; color: #fff; font-weight: 700; border-radius: 50%; }
+    .planner-cal-cell.has-data::after {
+      content: '•'; display: block; font-size: 8px;
+      color: #c6c09c; margin-top: -4px; line-height: 1;
     }
-    .planner-empty-icon { font-size: 36px; margin-bottom: 10px; }
-    .planner-section-title {
-      font-size: 13px; font-weight: 700; color: var(--text2);
-      margin: 20px 0 10px; letter-spacing: 0.3px;
+    .planner-cal-cell.selected::after { color: rgba(255,255,255,0.7); }
+
+    /* Sheet */
+    .planner-sheet {
+      border: 1.5px solid #c6c09c; border-radius: 16px;
+      overflow: hidden; background: var(--surface);
+    }
+    .planner-sheet-top { display: flex; border-bottom: 1.5px solid #c6c09c; }
+    .planner-sheet-date-col {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 16px 12px;
+      border-right: 1.5px solid #c6c09c; min-width: 62px;
+      background: rgba(198,192,156,0.08);
+    }
+    .planner-sheet-daynum { font-size: 38px; font-weight: 700; color: #c6c09c; line-height: 1; }
+    .planner-sheet-dayname { font-size: 11px; font-weight: 700; color: #c6c09c; letter-spacing: 1.5px; margin-top: 4px; }
+    .planner-sheet-fields { flex: 1; min-width: 0; }
+    .planner-sheet-row {
+      display: flex; border-bottom: 1px solid rgba(198,192,156,0.35);
+    }
+    .planner-sheet-row:last-child { border-bottom: none; }
+    .planner-sheet-cell { padding: 10px 12px; }
+    .planner-sheet-cell.wide { flex: 1; min-width: 0; border-right: 1px solid rgba(198,192,156,0.35); }
+    .planner-sheet-cell.narrow { width: 90px; flex-shrink: 0; }
+    .planner-field-label {
+      font-size: 9px; font-weight: 700; color: #c6c09c;
+      letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase;
+    }
+    .planner-field-area {
+      width: 100%; border: none; background: transparent;
+      font-size: 13px; color: var(--text); font-family: inherit;
+      resize: none; outline: none; line-height: 1.5; box-sizing: border-box;
+    }
+    .planner-field-input {
+      width: 100%; border: none; background: transparent;
+      font-size: 13px; color: var(--text); font-family: inherit; outline: none;
+    }
+    .planner-field-dday {
+      font-size: 20px; font-weight: 700; color: #c6c09c; letter-spacing: -0.5px; margin-top: 2px;
+    }
+    /* Task body */
+    .planner-sheet-body { }
+    .planner-task-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px; border-bottom: 1px solid rgba(198,192,156,0.35);
+      background: rgba(198,192,156,0.05);
+    }
+    .planner-task-add-btn {
+      background: #c6c09c; color: #fff; border: none;
+      border-radius: 16px; padding: 4px 12px; font-size: 12px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .planner-progress-bar {
+      height: 4px; background: rgba(198,192,156,0.2); margin: 0;
+    }
+    .planner-progress-fill {
+      height: 100%; background: #c6c09c; transition: width 0.3s;
+    }
+    .planner-task-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-bottom: 1px solid rgba(198,192,156,0.2);
+      transition: background 0.15s;
+    }
+    .planner-task-row:last-child { border-bottom: none; }
+    .planner-task-row.done { background: rgba(198,192,156,0.04); }
+    .planner-task-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1.5px solid #c6c09c; background: transparent;
+      cursor: pointer; flex-shrink: 0; font-size: 11px; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .planner-task-row.done .planner-task-check { background: #c6c09c; }
+    .planner-task-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 14px; color: var(--text); font-family: inherit; outline: none;
+    }
+    .planner-task-row.done .planner-task-input { text-decoration: line-through; color: var(--text2); }
+    .planner-task-del {
+      background: none; border: none; color: rgba(198,192,156,0.4);
+      cursor: pointer; font-size: 13px; padding: 2px 4px; flex-shrink: 0; font-family: inherit;
+    }
+    .planner-task-del:hover { color: #EF5350; }
+    .planner-ruled-line { height: 38px; border-bottom: 1px solid rgba(198,192,156,0.18); }
+    .planner-no-tasks {
+      text-align: center; padding: 20px; color: rgba(198,192,156,0.7); font-size: 13px;
     }
 
     /* ─── PAGES ─── */
@@ -3371,110 +3432,198 @@ async function ebsDeleteDunno(id) {
 }
 
 // ══════════════════════════════════════════
-// PLANNER
+// PLANNER (redesigned)
 // ══════════════════════════════════════════
 
-function plannerTodayKey() {
-  const d = new Date();
-  return `planner_${d.getFullYear()}_${d.getMonth()+1}_${d.getDate()}`;
+let plannerSelDate = new Date();
+let plannerCalY = plannerSelDate.getFullYear();
+let plannerCalM = plannerSelDate.getMonth();
+
+function plannerDayKey(d) {
+  return `pd_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
 }
 
-function plannerLoad() {
-  const key = plannerTodayKey();
-  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { return []; }
+function plannerDayLoad(d) {
+  try {
+    return JSON.parse(localStorage.getItem(plannerDayKey(d)) || 'null')
+      || { goal: '', comment: '', totalTime: '', tasks: [] };
+  } catch(e) { return { goal: '', comment: '', totalTime: '', tasks: [] }; }
 }
 
-function plannerSave(items) {
-  localStorage.setItem(plannerTodayKey(), JSON.stringify(items));
+function plannerDaySave(d, data) {
+  localStorage.setItem(plannerDayKey(d), JSON.stringify(data));
 }
 
-function plannerAdd() {
-  const input = document.getElementById('planner-new-input');
-  const text = (input?.value || '').trim();
-  if (!text) return;
-  const items = plannerLoad();
-  items.push({ id: Date.now(), text, done: false });
-  plannerSave(items);
-  input.value = '';
-  renderPlanner();
+function plannerNavMonth(dir) {
+  plannerCalM += dir;
+  if (plannerCalM < 0)  { plannerCalM = 11; plannerCalY--; }
+  if (plannerCalM > 11) { plannerCalM = 0;  plannerCalY++; }
+  renderPlannerCal();
 }
 
-function plannerToggle(id) {
-  const items = plannerLoad();
-  const item = items.find(i => i.id === id);
-  if (item) item.done = !item.done;
-  plannerSave(items);
-  renderPlanner();
+function plannerSelectDate(y, m, d) {
+  plannerSelDate = new Date(y, m, d);
+  renderPlannerCal();
+  renderPlannerSheet();
 }
 
-function plannerDelete(id) {
-  const items = plannerLoad().filter(i => i.id !== id);
-  plannerSave(items);
-  renderPlanner();
+function plannerSaveField(field, value) {
+  const data = plannerDayLoad(plannerSelDate);
+  data[field] = value;
+  plannerDaySave(plannerSelDate, data);
+}
+
+function plannerAddTask() {
+  const data = plannerDayLoad(plannerSelDate);
+  data.tasks.push({ id: Date.now(), text: '', done: false });
+  plannerDaySave(plannerSelDate, data);
+  renderPlannerSheet();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.planner-task-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 30);
+}
+
+function plannerToggleTask(id) {
+  const data = plannerDayLoad(plannerSelDate);
+  const t = data.tasks.find(t => t.id === id);
+  if (t) t.done = !t.done;
+  plannerDaySave(plannerSelDate, data);
+  renderPlannerSheet();
+}
+
+function plannerDeleteTask(id) {
+  const data = plannerDayLoad(plannerSelDate);
+  data.tasks = data.tasks.filter(t => t.id !== id);
+  plannerDaySave(plannerSelDate, data);
+  renderPlannerSheet();
+}
+
+function plannerUpdateTask(id, text) {
+  const data = plannerDayLoad(plannerSelDate);
+  const t = data.tasks.find(t => t.id === id);
+  if (t) { t.text = text; plannerDaySave(plannerSelDate, data); }
 }
 
 function renderPlanner() {
   const container = document.getElementById('planner-content');
   if (!container) return;
+  container.innerHTML = `<div id="planner-cal-area"></div><div id="planner-sheet-area"></div>`;
+  renderPlannerCal();
+  renderPlannerSheet();
+}
+
+function renderPlannerCal() {
+  const wrap = document.getElementById('planner-cal-area');
+  if (!wrap) return;
 
   const today = new Date();
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일 (${days[today.getDay()]})`;
+  const MN = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const DN = ['일','월','화','수','목','금','토'];
+  const firstDay = new Date(plannerCalY, plannerCalM, 1).getDay();
+  const daysInMonth = new Date(plannerCalY, plannerCalM + 1, 0).getDate();
+
+  let cells = '';
+  for (let i = 0; i < firstDay; i++) cells += `<div class="planner-cal-cell"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getFullYear()===plannerCalY && today.getMonth()===plannerCalM && today.getDate()===d;
+    const isSel   = plannerSelDate.getFullYear()===plannerCalY && plannerSelDate.getMonth()===plannerCalM && plannerSelDate.getDate()===d;
+    const hasData = !!localStorage.getItem(plannerDayKey(new Date(plannerCalY, plannerCalM, d)));
+    const cls = `planner-cal-cell${isToday?' today':''}${isSel?' selected':''}${hasData&&!isSel?' has-data':''}`;
+    cells += `<div class="${cls}" onclick="plannerSelectDate(${plannerCalY},${plannerCalM},${d})">${d}</div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="planner-cal">
+      <div class="planner-cal-header">
+        <button class="planner-cal-nav" onclick="plannerNavMonth(-1)">‹</button>
+        <span class="planner-cal-title">${plannerCalY}년 ${MN[plannerCalM]}</span>
+        <button class="planner-cal-nav" onclick="plannerNavMonth(1)">›</button>
+      </div>
+      <div class="planner-cal-days">
+        ${DN.map((d,i)=>`<div class="planner-cal-dayname${i===0?' sun':i===6?' sat':''}">${d}</div>`).join('')}
+      </div>
+      <div class="planner-cal-grid">${cells}</div>
+    </div>`;
+}
+
+function renderPlannerSheet() {
+  const wrap = document.getElementById('planner-sheet-area');
+  if (!wrap) return;
+
+  const data = plannerDayLoad(plannerSelDate);
+  const d = plannerSelDate;
+  const DNAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
   const suneung = new Date(2026, 10, 19);
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dday = Math.round((suneung - todayMid) / (1000 * 60 * 60 * 24));
+  const sel0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const ddayN = Math.round((suneung - sel0) / (1000*60*60*24));
+  const ddayStr = ddayN > 0 ? `D-${ddayN}` : ddayN === 0 ? 'D-DAY' : `D+${Math.abs(ddayN)}`;
 
-  const items = plannerLoad();
-  const doneCount = items.filter(i => i.done).length;
-  const total = items.length;
+  const doneCount = data.tasks.filter(t => t.done).length;
+  const total = data.tasks.length;
+  const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
 
-  const todoItems = items.filter(i => !i.done);
-  const doneItems = items.filter(i => i.done);
+  const taskRows = data.tasks.map(t => `
+    <div class="planner-task-row${t.done?' done':''}">
+      <button class="planner-task-check" onclick="plannerToggleTask(${t.id})">${t.done?'✓':''}</button>
+      <input class="planner-task-input" type="text" value="${esc(t.text)}"
+        placeholder="할 일을 입력하세요..."
+        oninput="plannerUpdateTask(${t.id},this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();plannerAddTask();}">
+      <button class="planner-task-del" onclick="plannerDeleteTask(${t.id})">✕</button>
+    </div>`).join('');
 
-  const renderItem = (item) => `
-    <div class="planner-item ${item.done ? 'done' : ''}" id="pitem-${item.id}">
-      <button class="planner-check" onclick="plannerToggle(${item.id})">${item.done ? '✓' : ''}</button>
-      <span class="planner-text">${esc(item.text)}</span>
-      <button class="planner-delete" onclick="plannerDelete(${item.id})">✕</button>
+  const blankLines = Array(Math.max(0, 8 - data.tasks.length)).fill(0)
+    .map(() => `<div class="planner-ruled-line"></div>`).join('');
+
+  wrap.innerHTML = `
+    <div class="planner-sheet">
+      <div class="planner-sheet-top">
+        <div class="planner-sheet-date-col">
+          <div class="planner-sheet-daynum">${d.getDate()}</div>
+          <div class="planner-sheet-dayname">${DNAMES[d.getDay()]}</div>
+        </div>
+        <div class="planner-sheet-fields">
+          <div class="planner-sheet-row">
+            <div class="planner-sheet-cell wide">
+              <div class="planner-field-label">TODAY'S GOAL</div>
+              <textarea class="planner-field-area" rows="2" placeholder="오늘의 목표..."
+                onchange="plannerSaveField('goal',this.value)">${esc(data.goal)}</textarea>
+            </div>
+            <div class="planner-sheet-cell narrow">
+              <div class="planner-field-label">D-DAY</div>
+              <div class="planner-field-dday">${ddayStr}</div>
+            </div>
+          </div>
+          <div class="planner-sheet-row">
+            <div class="planner-sheet-cell wide">
+              <div class="planner-field-label">COMMENT</div>
+              <textarea class="planner-field-area" rows="2" placeholder="오늘 하루 코멘트..."
+                onchange="plannerSaveField('comment',this.value)">${esc(data.comment)}</textarea>
+            </div>
+            <div class="planner-sheet-cell narrow">
+              <div class="planner-field-label">TOTAL TIME</div>
+              <input class="planner-field-input" type="text" placeholder="예) 8h 30m"
+                value="${esc(data.totalTime)}"
+                onchange="plannerSaveField('totalTime',this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="planner-sheet-body">
+        <div class="planner-task-header">
+          <span class="planner-field-label" style="margin:0;">TASKS${total>0?` · ${doneCount}/${total} 완료 (${pct}%)`:''}</span>
+          <button class="planner-task-add-btn" onclick="plannerAddTask()">+ 추가</button>
+        </div>
+        ${total > 0
+          ? `<div class="planner-progress-bar"><div class="planner-progress-fill" style="width:${pct}%"></div></div>`
+          : ''}
+        ${taskRows}
+        ${data.tasks.length === 0 ? `<div class="planner-no-tasks">+ 추가 버튼으로 오늘의 할 일을 입력해봐!</div>` : ''}
+        ${blankLines}
+      </div>
     </div>`;
-
-  const summaryHtml = total > 0 ? `
-    <div class="planner-summary">
-      전체 <b>${total}개</b> 중 <b>${doneCount}개</b> 완료
-      ${total > 0 ? ` · 달성률 <b>${Math.round(doneCount/total*100)}%</b>` : ''}
-    </div>` : '';
-
-  const todoHtml = todoItems.length > 0
-    ? `<div class="planner-section-title">해야 할 것 (${todoItems.length})</div>
-       <div class="planner-list">${todoItems.map(renderItem).join('')}</div>`
-    : '';
-
-  const doneHtml = doneItems.length > 0
-    ? `<div class="planner-section-title">완료 ✓ (${doneItems.length})</div>
-       <div class="planner-list">${doneItems.map(renderItem).join('')}</div>`
-    : '';
-
-  const emptyHtml = total === 0 ? `
-    <div class="planner-empty">
-      <div class="planner-empty-icon">📝</div>
-      오늘 공부 계획을 추가해봐!
-    </div>` : '';
-
-  container.innerHTML = `
-    <div class="planner-date-header">${dateStr}</div>
-    <div class="planner-date-sub">수능 D-${dday}</div>
-    <div class="planner-add-row">
-      <input class="planner-input" id="planner-new-input" type="text"
-        placeholder="오늘의 공부 계획 입력..."
-        onkeydown="if(event.key==='Enter') plannerAdd()">
-      <button class="planner-add-btn" onclick="plannerAdd()">+ 추가</button>
-    </div>
-    ${summaryHtml}
-    ${emptyHtml}
-    ${todoHtml}
-    ${doneHtml}
-  `;
 }
 
 // Auto-init EBS quiz when page loads
