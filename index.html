@@ -1671,6 +1671,7 @@ function goTo(page) {
 // ══════════════════════════════════════════
 
 function renderHome() {
+  if (!document.getElementById('home-stats')) return; // 홈 페이지 아니면 스킵
   const db = getDB();
 
   // Greeting
