@@ -1438,9 +1438,15 @@ function initFirestore() {
       english: { vocab: [], passage: [], 'type-study': [] },
       science: { biology: [], earth: [] }
     };
+    plannerCache = {};
     snapshot.forEach(doc => {
       const data = { ...doc.data(), id: doc.id };
       const { subject, type } = data;
+      // 플래너 데이터는 plannerCache에 따로 분리
+      if (subject === 'planner' && data.dateKey) {
+        plannerCache[data.dateKey] = data;
+        return;
+      }
       if (appData[subject] && Array.isArray(appData[subject][type])) {
         appData[subject][type].push(data);
       }
@@ -1449,11 +1455,12 @@ function initFirestore() {
     setTimeout(() => setSyncStatus(''), 2500);
     renderHome();
     renderSubject(state.currentPage);
+    if (state.currentPage === 'planner') { renderPlannerCal(); renderPlannerSheet(); }
   }, err => {
     setSyncStatus('❌ 연결 오류', '#A0504A');
     console.error('Firestore error:', err);
   });
-  plannerInitSync();
+  plannerMigrateLocalStorage();
 }
 
 function getDB() { return appData; }
@@ -3497,43 +3504,36 @@ function plannerDayLoad(d) {
 function plannerDaySave(d, data) {
   const key = plannerDayKey(d);
   plannerCache[key] = JSON.parse(JSON.stringify(data));
-  // Firestore에도 저장
-  fsDB.collection('planner').doc(key).set(data).catch(e => console.error('planner save error', e));
+  // entries 컬렉션에 날짜 key를 문서 ID로 사용해서 set (upsert)
+  const saveData = { ...data, subject: 'planner', type: 'day', dateKey: key, id: key };
+  fsDB.collection('entries').doc(key).set(saveData)
+    .catch(e => console.error('planner save error', e));
 }
 
-// Firestore에서 플래너 데이터 전체 로드 (앱 시작 시 1회 + 실시간 동기화)
-function plannerInitSync() {
-  fsDB.collection('planner').onSnapshot(snapshot => {
-    snapshot.forEach(doc => {
-      plannerCache[doc.id] = doc.data();
-    });
-    // 현재 플래너 페이지가 열려 있으면 다시 렌더
-    if (state.currentPage === 'planner') {
-      renderPlannerCal();
-      renderPlannerSheet();
+// localStorage 기존 데이터 → Firestore 마이그레이션 (1회만 실행)
+function plannerMigrateLocalStorage() {
+  if (localStorage.getItem('planner_migrated')) return;
+  const batch = fsDB.batch();
+  let hasMig = false;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('pd_')) {
+      try {
+        const val = JSON.parse(localStorage.getItem(k));
+        if (val) {
+          const saveData = { ...val, subject: 'planner', type: 'day', dateKey: k, id: k };
+          batch.set(fsDB.collection('entries').doc(k), saveData);
+          hasMig = true;
+        }
+      } catch(e) {}
     }
-  }, e => console.error('planner sync error', e));
-
-  // localStorage에 남아있는 기존 데이터를 Firestore로 마이그레이션 (1회)
-  if (!localStorage.getItem('planner_migrated')) {
-    const migBatch = fsDB.batch();
-    let hasMig = false;
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('pd_')) {
-        try {
-          const val = JSON.parse(localStorage.getItem(k));
-          if (val) { migBatch.set(fsDB.collection('planner').doc(k), val); hasMig = true; }
-        } catch(e) {}
-      }
-    }
-    if (hasMig) {
-      migBatch.commit().then(() => {
-        localStorage.setItem('planner_migrated', '1');
-      }).catch(e => console.error('planner migration error', e));
-    } else {
-      localStorage.setItem('planner_migrated', '1');
-    }
+  }
+  if (hasMig) {
+    batch.commit()
+      .then(() => localStorage.setItem('planner_migrated', '1'))
+      .catch(e => console.error('planner migration error', e));
+  } else {
+    localStorage.setItem('planner_migrated', '1');
   }
 }
 
