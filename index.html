@@ -1522,37 +1522,53 @@ function setSyncStatus(msg, color) {
   el.style.color = color || 'var(--text2)';
 }
 
+function processSnapshot(snapshot) {
+  appData = {
+    korean: { vocab: [], passage: [], grammar: [] },
+    math: { problems: [] },
+    english: { vocab: [], passage: [], 'type-study': [] },
+    science: { biology: [], earth: [] }
+  };
+  plannerCache = {};
+  snapshot.forEach(doc => {
+    const data = { ...doc.data(), id: doc.id };
+    const { subject, type } = data;
+    if (subject === 'planner' && data.dateKey) {
+      plannerCache[data.dateKey] = data;
+      return;
+    }
+    if (appData[subject] && Array.isArray(appData[subject][type])) {
+      appData[subject][type].push(data);
+    }
+  });
+  renderHome();
+  renderSubject(state.currentPage);
+  if (state.currentPage === 'planner') { renderPlannerCal(); renderPlannerSheet(); }
+}
+
 function initFirestore() {
   setSyncStatus('⏳ 불러오는 중...');
-  fsDB.collection('entries').onSnapshot(snapshot => {
-    appData = {
-      korean: { vocab: [], passage: [], grammar: [] },
-      math: { problems: [] },
-      english: { vocab: [], passage: [], 'type-study': [] },
-      science: { biology: [], earth: [] }
-    };
-    plannerCache = {};
-    snapshot.forEach(doc => {
-      const data = { ...doc.data(), id: doc.id };
-      const { subject, type } = data;
-      // 플래너 데이터는 plannerCache에 따로 분리
-      if (subject === 'planner' && data.dateKey) {
-        plannerCache[data.dateKey] = data;
-        return;
-      }
-      if (appData[subject] && Array.isArray(appData[subject][type])) {
-        appData[subject][type].push(data);
-      }
-    });
-    setSyncStatus('✅ 동기화됨', '#8A9E54');
-    setTimeout(() => setSyncStatus(''), 2500);
-    renderHome();
-    renderSubject(state.currentPage);
-    if (state.currentPage === 'planner') { renderPlannerCal(); renderPlannerSheet(); }
-  }, err => {
-    setSyncStatus('❌ 연결 오류', '#A0504A');
-    console.error('Firestore error:', err);
+
+  // 즉시 1회 GET — Safari에서 onSnapshot이 늦게 뜨는 경우 대비
+  fsDB.collection('entries').get().then(snapshot => {
+    processSnapshot(snapshot);
+    setSyncStatus('✅ 로드 완료', '#8A9E54');
+    setTimeout(() => setSyncStatus(''), 2000);
+  }).catch(err => {
+    setSyncStatus('❌ 로드 실패: ' + (err.code || err.message), '#A0504A');
+    console.error('Firestore get error:', err);
   });
+
+  // 실시간 동기화 (변경사항 자동 반영)
+  fsDB.collection('entries').onSnapshot(snapshot => {
+    processSnapshot(snapshot);
+    setSyncStatus('✅ 동기화됨', '#8A9E54');
+    setTimeout(() => setSyncStatus(''), 2000);
+  }, err => {
+    console.error('Firestore onSnapshot error:', err);
+    // onSnapshot 실패해도 GET으로 이미 로드했으므로 무시
+  });
+
   plannerMigrateLocalStorage();
 }
 
