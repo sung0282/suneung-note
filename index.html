@@ -1518,7 +1518,7 @@ let appData = {
 function setSyncStatus(msg, color) {
   const el = document.getElementById('sync-status');
   if (!el) return;
-  el.textContent = msg;
+  el.textContent = msg || '';
   el.style.color = color || 'var(--text2)';
 }
 
@@ -1575,10 +1575,9 @@ function initFirestore() {
 function getDB() { return appData; }
 
 async function addEntry(subject, type, entry) {
-  // 이미지가 너무 크면 제외하고 저장 (업로드 시 이미 압축됨)
+  // 이미지가 너무 크면 제외하고 저장
   if (entry.image && entry.image.length > 800000) {
     entry = { ...entry, image: null };
-    setSyncStatus('⚠️ 이미지 제외 후 저장', '#A0504A');
   }
   const docRef = fsDB.collection('entries').doc();
   const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
@@ -1587,20 +1586,15 @@ async function addEntry(subject, type, entry) {
   }
   renderHome();
   renderSubject(state.currentPage);
-  try {
-    await docRef.set(data);
+  // fire-and-forget (await 안 함 — Safari에서 무한대기 방지)
+  docRef.set(data).then(() => {
     setSyncStatus('✅ 저장 완료', '#8A9E54');
     setTimeout(() => setSyncStatus(''), 2000);
-    return data;
-  } catch(e) {
+  }).catch(e => {
     console.error('저장 실패:', e);
-    setSyncStatus('❌ 저장 실패: ' + (e.code || e.message), '#A0504A');
-    if (appData[subject] && Array.isArray(appData[subject][type])) {
-      appData[subject][type] = appData[subject][type].filter(d => d.id !== data.id);
-    }
-    renderHome(); renderSubject(state.currentPage);
-    return null;
-  }
+    setSyncStatus('❌ 저장 실패', '#A0504A');
+  });
+  return data;
 }
 
 async function updateEntry(subject, type, id, updates) {
@@ -1612,16 +1606,14 @@ async function updateEntry(subject, type, id, updates) {
   }
   renderHome();
   renderSubject(state.currentPage);
-  try {
-    await fsDB.collection('entries').doc(id).update(updated);
+  fsDB.collection('entries').doc(id).update(updated).then(() => {
     setSyncStatus('✅ 저장 완료', '#8A9E54');
     setTimeout(() => setSyncStatus(''), 2000);
-    return updated;
-  } catch(e) {
+  }).catch(e => {
     console.error('수정 실패:', e);
-    setSyncStatus('❌ 수정 실패: ' + (e.code || e.message), '#A0504A');
-    return null;
-  }
+    setSyncStatus('❌ 수정 실패', '#A0504A');
+  });
+  return updated;
 }
 
 async function deleteEntry(subject, type, id) {
