@@ -1453,6 +1453,7 @@ function initFirestore() {
     setSyncStatus('❌ 연결 오류', '#A0504A');
     console.error('Firestore error:', err);
   });
+  plannerInitSync();
 }
 
 function getDB() { return appData; }
@@ -3476,25 +3477,64 @@ async function ebsDeleteDunno(id) {
 let plannerSelDate = new Date();
 let plannerCalY = plannerSelDate.getFullYear();
 let plannerCalM = plannerSelDate.getMonth();
+let plannerCache = {}; // 인메모리 캐시: key → data
 
 function plannerDayKey(d) {
   return `pd_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
 }
 
 function plannerDayLoad(d) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(plannerDayKey(d)) || 'null');
-    if (!saved) return { goal: '', comment: '', totalTime: '', study: [], etc: [] };
-    // 구버전 호환 (tasks → study로 이전)
-    if (saved.tasks && !saved.study) { saved.study = saved.tasks; delete saved.tasks; }
-    if (!saved.study) saved.study = [];
-    if (!saved.etc)   saved.etc   = [];
-    return saved;
-  } catch(e) { return { goal: '', comment: '', totalTime: '', study: [], etc: [] }; }
+  const key = plannerDayKey(d);
+  const saved = plannerCache[key] || null;
+  if (!saved) return { goal: '', comment: '', totalTime: '', study: [], etc: [] };
+  // 구버전 호환 (tasks → study로 이전)
+  if (saved.tasks && !saved.study) { saved.study = saved.tasks; delete saved.tasks; }
+  if (!saved.study) saved.study = [];
+  if (!saved.etc)   saved.etc   = [];
+  return JSON.parse(JSON.stringify(saved)); // 깊은 복사
 }
 
 function plannerDaySave(d, data) {
-  localStorage.setItem(plannerDayKey(d), JSON.stringify(data));
+  const key = plannerDayKey(d);
+  plannerCache[key] = JSON.parse(JSON.stringify(data));
+  // Firestore에도 저장
+  fsDB.collection('planner').doc(key).set(data).catch(e => console.error('planner save error', e));
+}
+
+// Firestore에서 플래너 데이터 전체 로드 (앱 시작 시 1회 + 실시간 동기화)
+function plannerInitSync() {
+  fsDB.collection('planner').onSnapshot(snapshot => {
+    snapshot.forEach(doc => {
+      plannerCache[doc.id] = doc.data();
+    });
+    // 현재 플래너 페이지가 열려 있으면 다시 렌더
+    if (state.currentPage === 'planner') {
+      renderPlannerCal();
+      renderPlannerSheet();
+    }
+  }, e => console.error('planner sync error', e));
+
+  // localStorage에 남아있는 기존 데이터를 Firestore로 마이그레이션 (1회)
+  if (!localStorage.getItem('planner_migrated')) {
+    const migBatch = fsDB.batch();
+    let hasMig = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('pd_')) {
+        try {
+          const val = JSON.parse(localStorage.getItem(k));
+          if (val) { migBatch.set(fsDB.collection('planner').doc(k), val); hasMig = true; }
+        } catch(e) {}
+      }
+    }
+    if (hasMig) {
+      migBatch.commit().then(() => {
+        localStorage.setItem('planner_migrated', '1');
+      }).catch(e => console.error('planner migration error', e));
+    } else {
+      localStorage.setItem('planner_migrated', '1');
+    }
+  }
 }
 
 function plannerNavMonth(dir) {
@@ -3571,7 +3611,7 @@ function renderPlannerCal() {
   for (let d = 1; d <= daysInMonth; d++) {
     const isToday = today.getFullYear()===plannerCalY && today.getMonth()===plannerCalM && today.getDate()===d;
     const isSel   = plannerSelDate.getFullYear()===plannerCalY && plannerSelDate.getMonth()===plannerCalM && plannerSelDate.getDate()===d;
-    const hasData = !!localStorage.getItem(plannerDayKey(new Date(plannerCalY, plannerCalM, d)));
+    const hasData = !!plannerCache[plannerDayKey(new Date(plannerCalY, plannerCalM, d))];
     const cls = `planner-cal-cell${isToday?' today':''}${isSel?' selected':''}${hasData&&!isSel?' has-data':''}`;
     cells += `<div class="${cls}" onclick="plannerSelectDate(${plannerCalY},${plannerCalM},${d})">${d}</div>`;
   }
