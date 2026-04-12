@@ -1558,30 +1558,26 @@ function initFirestore() {
 
 function getDB() { return appData; }
 
-// 인라인 에러 표시 (iOS Safari에서 async alert 차단 문제 우회)
-function showFormError(msg) {
-  let el = document.getElementById('form-save-error');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'form-save-error';
-    el.style.cssText = 'color:#A0504A;font-size:13px;margin-top:10px;padding:10px 14px;background:rgba(160,80,74,0.08);border-radius:10px;';
-    const body = document.getElementById('modal-body');
-    if (body) body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
 async function addEntry(subject, type, entry) {
-  // 이미지 크기 초과 시 인라인 에러 (alert 대신)
+  // 이미지가 너무 크면 품질 낮춰서 재압축
   if (entry.image && entry.image.length > 800000) {
-    setSyncStatus('❌ 이미지 너무 큼', '#A0504A');
-    showFormError('⚠️ 이미지가 너무 커서 저장할 수 없어요. 이미지를 제거하고 저장해주세요.');
-    return null;
+    try {
+      const img = new Image();
+      await new Promise(resolve => { img.onload = resolve; img.src = entry.image; });
+      const canvas = document.createElement('canvas');
+      const MAX = 600;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = h * MAX / w; w = MAX; }
+      if (h > MAX) { w = w * MAX / h; h = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      entry = { ...entry, image: canvas.toDataURL('image/jpeg', 0.5) };
+    } catch(e) {
+      entry = { ...entry, image: null }; // 그래도 크면 이미지 제외하고 저장
+    }
   }
   const docRef = fsDB.collection('entries').doc();
   const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
-  // 로컬에 즉시 반영
   if (appData[subject] && Array.isArray(appData[subject][type])) {
     appData[subject][type].push(data);
   }
@@ -1589,12 +1585,12 @@ async function addEntry(subject, type, entry) {
   renderSubject(state.currentPage);
   try {
     await docRef.set(data);
+    setSyncStatus('✅ 저장 완료', '#8A9E54');
+    setTimeout(() => setSyncStatus(''), 2000);
     return data;
   } catch(e) {
     console.error('저장 실패:', e);
-    setSyncStatus('❌ 저장 실패', '#A0504A');
-    showFormError('⚠️ 저장 실패: ' + (e.message || '네트워크 또는 권한 문제'));
-    // 로컬 롤백
+    setSyncStatus('❌ 저장 실패: ' + (e.code || e.message), '#A0504A');
     if (appData[subject] && Array.isArray(appData[subject][type])) {
       appData[subject][type] = appData[subject][type].filter(d => d.id !== data.id);
     }
@@ -1614,11 +1610,12 @@ async function updateEntry(subject, type, id, updates) {
   renderSubject(state.currentPage);
   try {
     await fsDB.collection('entries').doc(id).update(updated);
+    setSyncStatus('✅ 저장 완료', '#8A9E54');
+    setTimeout(() => setSyncStatus(''), 2000);
     return updated;
   } catch(e) {
     console.error('수정 실패:', e);
-    setSyncStatus('❌ 저장 실패', '#A0504A');
-    showFormError('⚠️ 수정 실패: ' + (e.message || '네트워크 또는 권한 문제'));
+    setSyncStatus('❌ 수정 실패: ' + (e.code || e.message), '#A0504A');
     return null;
   }
 }
@@ -2260,8 +2257,9 @@ function removePassageImage() {
 }
 
 async function submitPassage(subject, editId) {
+  setSyncStatus('💾 저장 중...');
   const title = v('f-title').trim();
-  if (!title) return alert('제목은 필수입니다.');
+  if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
   const imageData = pendingPassageImage || (editId ? (() => {
     const list = subject === 'korean' ? appData.korean.passage : appData.english.passage;
     return (list || []).find(e => e.id === editId)?.image || null;
@@ -2274,14 +2272,10 @@ async function submitPassage(subject, editId) {
     source: v('f-source').trim(),
     image: imageData
   };
-  setSyncStatus('💾 저장 중...');
-  let result;
-  if (editId) result = await updateEntry(subject, 'passage', editId, entry);
-  else result = await addEntry(subject, 'passage', entry);
-  if (result !== null && result !== undefined) {
-    pendingPassageImage = null;
-    closeModal();
-  }
+  if (editId) await updateEntry(subject, 'passage', editId, entry);
+  else await addEntry(subject, 'passage', entry);
+  pendingPassageImage = null;
+  closeModal();
 }
 
 // ── GRAMMAR FORM ──
