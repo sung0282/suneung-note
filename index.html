@@ -1574,7 +1574,7 @@ function initFirestore() {
 
 function getDB() { return appData; }
 
-async function addEntry(subject, type, entry) {
+function addEntry(subject, type, entry) {
   // 이미지가 너무 크면 제외하고 저장
   if (entry.image && entry.image.length > 800000) {
     entry = { ...entry, image: null };
@@ -1584,16 +1584,17 @@ async function addEntry(subject, type, entry) {
   if (appData[subject] && Array.isArray(appData[subject][type])) {
     appData[subject][type].push(data);
   }
-  renderHome();
-  renderSubject(state.currentPage);
-  // fire-and-forget (await 안 함 — Safari에서 무한대기 방지)
+  // Firestore 저장 먼저 — 렌더링 예외가 저장을 막지 않도록
   docRef.set(data).then(() => {
     setSyncStatus('✅ 저장 완료', '#8A9E54');
     setTimeout(() => setSyncStatus(''), 2000);
   }).catch(e => {
     console.error('저장 실패:', e);
-    setSyncStatus('❌ 저장 실패', '#A0504A');
+    setSyncStatus('❌ 저장 실패: ' + (e.message || e), '#A0504A');
   });
+  // 렌더링은 별도 try-catch — 실패해도 저장엔 영향 없음
+  try { renderHome(); } catch(e) { console.error('renderHome error:', e); }
+  try { renderSubject(state.currentPage); } catch(e) { console.error('renderSubject error:', e); }
   return data;
 }
 
