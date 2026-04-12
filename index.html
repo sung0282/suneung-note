@@ -1225,7 +1225,14 @@
     #login-screen {
       position: fixed; inset: 0; z-index: 9999;
       background: var(--bg);
+      display: none; align-items: center; justify-content: center;
+    }
+    #auth-loading {
+      position: fixed; inset: 0; z-index: 9998;
+      background: var(--bg);
       display: flex; align-items: center; justify-content: center;
+      font-family: 'Eulyoo1945', Georgia, serif;
+      font-size: 15px; color: var(--text2);
     }
     .login-box {
       width: 100%; max-width: 360px;
@@ -1275,6 +1282,9 @@
   </style>
 </head>
 <body>
+
+  <!-- AUTH LOADING -->
+  <div id="auth-loading">잠시만요...</div>
 
   <!-- LOGIN SCREEN -->
   <div id="login-screen">
@@ -1550,6 +1560,12 @@ function getDB() { return appData; }
 
 async function addEntry(subject, type, entry) {
   const docRef = fsDB.collection('entries').doc();
+  // 이미지가 있으면 크기 체크 (Firestore 1MB 한도)
+  if (entry.image && entry.image.length > 700000) {
+    alert('이미지가 너무 커서 저장할 수 없어요. 이미지 없이 저장하거나 더 작은 이미지를 사용해주세요.');
+    setSyncStatus('');
+    return null;
+  }
   const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
   // 로컬에 즉시 반영 (onSnapshot 오기 전에 바로 보이도록)
   if (appData[subject] && Array.isArray(appData[subject][type])) {
@@ -1557,8 +1573,20 @@ async function addEntry(subject, type, entry) {
   }
   renderHome();
   renderSubject(state.currentPage);
-  // Firestore에 비동기 저장
-  docRef.set(data);
+  // Firestore에 저장 (에러 처리 포함)
+  try {
+    await docRef.set(data);
+  } catch(e) {
+    console.error('저장 실패:', e);
+    alert('저장에 실패했어요: ' + (e.message || e));
+    setSyncStatus('❌ 저장 실패', '#A0504A');
+    // 로컬에서도 롤백
+    if (appData[subject] && Array.isArray(appData[subject][type])) {
+      appData[subject][type] = appData[subject][type].filter(d => d.id !== data.id);
+    }
+    renderHome(); renderSubject(state.currentPage);
+    return null;
+  }
   return data;
 }
 
@@ -1571,7 +1599,13 @@ async function updateEntry(subject, type, id, updates) {
   }
   renderHome();
   renderSubject(state.currentPage);
-  fsDB.collection('entries').doc(id).update(updated);
+  try {
+    await fsDB.collection('entries').doc(id).update(updated);
+  } catch(e) {
+    console.error('수정 실패:', e);
+    alert('수정에 실패했어요: ' + (e.message || e));
+    setSyncStatus('❌ 저장 실패', '#A0504A');
+  }
 }
 
 async function deleteEntry(subject, type, id) {
@@ -3142,12 +3176,17 @@ function init() {
   initFirestore();
 }
 
+let appInited = false;
 fsAuth.onAuthStateChanged(user => {
+  const loading = document.getElementById('auth-loading');
+  const loginScreen = document.getElementById('login-screen');
+  if (loading) loading.style.display = 'none';
   if (user) {
-    document.getElementById('login-screen').style.display = 'none';
-    init();
+    loginScreen.style.display = 'none';
+    if (!appInited) { appInited = true; init(); }
   } else {
-    document.getElementById('login-screen').style.display = 'flex';
+    loginScreen.style.display = 'flex';
+    appInited = false;
   }
 });
 
