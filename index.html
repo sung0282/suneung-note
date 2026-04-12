@@ -11,6 +11,7 @@
   <title>2027 수능 학습 노트</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <style>
     :root {
       --korean: #C38380;
@@ -1220,9 +1221,73 @@
       color: var(--text2);
       font-size: 13px;
     }
+    /* ── LOGIN SCREEN ── */
+    #login-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-box {
+      width: 100%; max-width: 360px;
+      padding: 40px 32px;
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(67,48,46,0.12);
+      text-align: center;
+    }
+    .login-title {
+      font-family: 'Eulyoo1945', Georgia, serif;
+      font-size: 22px; font-weight: 700;
+      color: var(--text); margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: 13px; color: var(--text2); margin-bottom: 28px;
+    }
+    .login-input {
+      width: 100%; box-sizing: border-box;
+      padding: 13px 16px; border-radius: 12px;
+      border: 1.5px solid rgba(67,48,46,0.15);
+      background: var(--bg); color: var(--text);
+      font-size: 15px; font-family: inherit;
+      margin-bottom: 12px; outline: none;
+    }
+    .login-input:focus { border-color: var(--korean); }
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: #43302E; color: #fff;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700;
+      font-family: 'Eulyoo1945', Georgia, serif;
+      cursor: pointer; margin-top: 4px;
+    }
+    .login-btn:active { opacity: 0.85; }
+    .login-error {
+      font-size: 13px; color: #A0504A;
+      margin-top: 12px; min-height: 18px;
+    }
+    .logout-btn {
+      font-size: 12px; color: var(--text2);
+      background: none; border: 1px solid rgba(67,48,46,0.2);
+      border-radius: 20px; padding: 4px 10px;
+      cursor: pointer; font-family: inherit;
+    }
+    .logout-btn:hover { color: #A0504A; border-color: #A0504A; }
   </style>
 </head>
 <body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-title">2027 수능 학습 노트</div>
+      <div class="login-sub">관리자 계정으로 로그인하세요</div>
+      <input class="login-input" id="login-email" type="email" placeholder="이메일" autocomplete="email">
+      <input class="login-input" id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
+      <button class="login-btn" onclick="doLogin()">로그인</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
 
 <!-- STICKY TOP WRAPPER -->
 <div class="sticky-top-wrap">
@@ -1237,6 +1302,7 @@
       <div class="header-actions">
         <span id="sync-status" style="font-size:12px;margin-right:4px"></span>
         <button class="icon-btn" onclick="openDataModal()" title="데이터 관리">💾</button>
+        <button class="logout-btn" onclick="doLogout()">로그아웃</button>
       </div>
     </div>
   </header>
@@ -1414,6 +1480,23 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const fsDB = firebase.firestore();
+const fsAuth = firebase.auth();
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+  fsAuth.signInWithEmailAndPassword(email, pw)
+    .catch(err => {
+      errEl.textContent = '로그인 실패: 이메일 또는 비밀번호를 확인하세요.';
+    });
+}
+
+function doLogout() {
+  if (confirm('로그아웃 할까요?')) fsAuth.signOut();
+}
 
 let appData = {
   korean: { vocab: [], passage: [], grammar: [] },
@@ -3059,7 +3142,14 @@ function init() {
   initFirestore();
 }
 
-init();
+fsAuth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('login-screen').style.display = 'none';
+    init();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+});
 
 
 // ===== EBS 단어장 데이터 =====
