@@ -1658,6 +1658,7 @@ function goTo(page) {
   document.getElementById(`page-${page}`).classList.add('active');
 
   state.currentPage = page;
+  try { sessionStorage.setItem('lastPage', page); } catch(e) {}
 
   // FAB
   const fab = document.getElementById('fab');
@@ -3186,6 +3187,12 @@ function init() {
   }, { threshold: 0.1 });
 
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // 마지막 페이지 복원
+  try {
+    const last = sessionStorage.getItem('lastPage');
+    if (last && document.getElementById('page-' + last)) goTo(last);
+  } catch(e) {}
 
   // Firebase 실시간 동기화 시작
   initFirestore();
