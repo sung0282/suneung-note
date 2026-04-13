@@ -1332,8 +1332,18 @@
 <!-- ══════ HOME PAGE ══════ -->
 <div id="page-home" class="page active">
   <div class="home-hero">
-    <div class="home-greeting" id="home-greeting">안녕하세요!</div>
+    <div class="home-greeting" id="home-greeting"></div>
     <div class="home-date" id="home-date"></div>
+    <script>
+    (function(){
+      var t=new Date(),s=new Date(2026,10,19),m=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+      var d=Math.round((s-m)/864e5),dd=d>0?'D-'+d:d===0?'D-Day':'D+'+Math.abs(d);
+      var ds=t.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+      document.getElementById('home-greeting').textContent=ds+'(수능 '+dd+')';
+      var h=t.getHours();
+      document.getElementById('home-date').textContent=h<6?'새벽에도 열공 중!':h<12?'좋은 아침이에요!':h<18?'오늘도 화이팅!':'저녁에도 열심히!';
+    })();
+    </script>
   </div>
 
   <div class="subject-grid">
