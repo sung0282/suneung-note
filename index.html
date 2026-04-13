@@ -1438,7 +1438,8 @@
   </div>
   <div class="page-section">
     <div class="page-section-header">
-      <span class="page-section-title">생명과학 I 이론 정리</span>
+      <span class="page-section-title">이론 정리</span>
+      <button class="page-section-add" onclick="openAddBioTheory()">+ 추가</button>
     </div>
     <div id="content-biology-theory"></div>
   </div>
@@ -1522,7 +1523,7 @@ let appData = {
   korean: { vocab: [], passage: [], grammar: [] },
   math: { problems: [] },
   english: { vocab: [], passage: [], 'type-study': [] },
-  science: { biology: [], earth: [] }
+  science: { biology: [], earth: [], bioTheory: [] }
 };
 
 function setSyncStatus(msg, color) {
@@ -1537,7 +1538,7 @@ function processSnapshot(snapshot) {
     korean: { vocab: [], passage: [], grammar: [] },
     math: { problems: [] },
     english: { vocab: [], passage: [], 'type-study': [] },
-    science: { biology: [], earth: [] }
+    science: { biology: [], earth: [], bioTheory: [] }
   };
   plannerCache = {};
   snapshot.forEach(doc => {
@@ -1717,7 +1718,7 @@ function renderHome() {
   document.getElementById('count-korean').textContent = `${db.korean.vocab.length + db.korean.passage.length + db.korean.grammar.length}개의 항목`;
   document.getElementById('count-math').textContent = `${db.math.problems.length}개의 문제`;
   document.getElementById('count-english').textContent = `${db.english.vocab.length + db.english.passage.length}개의 항목`;
-  document.getElementById('count-biology').textContent = `${db.science.biology.length}개의 문제`;
+  document.getElementById('count-biology').textContent = `${db.science.biology.length + db.science.bioTheory.length}개의 항목`;
   document.getElementById('count-earth').textContent = `${db.science.earth.length}개의 문제`;
 
   // Recent entries
@@ -1763,7 +1764,12 @@ function renderSubject(subject) {
     container.innerHTML = entries.length === 0
       ? emptyState('🔬', search ? '검색 결과가 없어요' : '+ 추가 버튼으로 틀린 문제를 기록해보세요')
       : entries.sort(byDate).map(e => renderEntryCard(e, 'science', 'biology')).join('');
-    renderScienceTheory('content-biology-theory', BIOLOGY_THEORY, 'bio');
+    // 이론 정리 — Firestore 기반
+    const theoryContainer = document.getElementById('content-biology-theory');
+    const theoryEntries = db.science.bioTheory.filter(e => matchSearch(e, search));
+    theoryContainer.innerHTML = theoryEntries.length === 0
+      ? emptyState('📖', search ? '검색 결과가 없어요' : '+ 추가 버튼으로 이론을 정리해보세요')
+      : theoryEntries.sort(byDate).map(e => renderEntryCard(e, 'science', 'bioTheory')).join('');
     return;
   }
 
@@ -1892,7 +1898,8 @@ function emptyState(icon, msg) {
 
 const TYPE_LABELS = {
   vocab: '어휘', passage: '지문 분석', grammar: '언어와 매체',
-  problems: '문제', biology: '생명과학', earth: '지구과학', 'type-study': '유형 분석'
+  problems: '문제', biology: '생명과학', earth: '지구과학', 'type-study': '유형 분석',
+  bioTheory: '이론 정리'
 };
 
 function renderEntryCard(entry, subject, type) {
@@ -1927,6 +1934,10 @@ function renderEntryCard(entry, subject, type) {
     if (entry.concepts) entry.concepts.split(',').forEach(c => {
       if (c.trim()) extra += ` <span class="ec-tag">${esc(c.trim())}</span>`;
     });
+  } else if (type === 'bioTheory') {
+    title = entry.title || '제목 없음';
+    preview = entry.text || entry.analysis || '';
+    if (entry.source) extra += `<span class="ec-tag">${esc(entry.source)}</span>`;
   } else if (type === 'biology' || type === 'earth') {
     title = entry.title || '제목 없음';
     preview = entry.problem || '';
@@ -2293,6 +2304,62 @@ function submitPassage(subject, editId) {
   }
 }
 
+// ── BIO THEORY FORM (지문분석과 동일 구조) ──
+function openAddBioTheory(editId) {
+  if (editId) {
+    const entry = appData.science.bioTheory.find(e => e.id === editId);
+    openModal('이론 수정', bioTheoryForm(entry));
+  } else {
+    openModal('이론 추가', bioTheoryForm(null));
+  }
+}
+
+function bioTheoryForm(data) {
+  pendingPassageImage = null;
+  const existingImg = data?.image || null;
+  return `
+    <div class="form-field"><label class="form-label">제목*</label>
+      <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="예) 세포 분열과 DNA 복제"></div>
+    <div class="form-field"><label class="form-label">내용 / 설명</label>
+      <textarea class="form-textarea large" id="f-text" placeholder="이론 내용을 정리하세요">${esc(data?.text||'')}</textarea>
+      <div style="margin-top:8px;">
+        <div class="image-upload-area" id="passage-upload-area" ${existingImg ? 'style="display:none"' : ''}>
+          <input type="file" accept="image/*" onchange="handlePassageImageUpload(event)">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">사진으로 추가하기</div>
+        </div>
+        <div id="passage-img-preview">${existingImg ? `<div class="image-preview-wrap"><img src="${existingImg}"><button class="remove-image-btn" onclick="removePassageImage()">✕</button></div>` : ''}</div>
+      </div>
+    </div>
+    <div class="form-field"><label class="form-label">핵심 포인트</label>
+      <textarea class="form-textarea large" id="f-analysis" placeholder="시험에 자주 나오는 핵심 내용, 헷갈리는 부분 등">${esc(data?.analysis||'')}</textarea></div>
+    <div class="form-field"><label class="form-label">출처</label>
+      <input class="form-input" id="f-source" value="${esc(data?.source||'')}" placeholder="예) 수능특강 3단원"></div>
+    <button class="form-submit biology" onclick="submitBioTheory('${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
+}
+
+function submitBioTheory(editId) {
+  setSyncStatus('💾 저장 중...');
+  const title = v('f-title').trim();
+  if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
+  const imageData = pendingPassageImage || (editId ? (appData.science.bioTheory.find(e => e.id === editId)?.image || null) : null);
+  const entry = {
+    title,
+    text: v('f-text').trim(),
+    analysis: v('f-analysis').trim(),
+    source: v('f-source').trim(),
+    image: imageData
+  };
+  pendingPassageImage = null;
+  closeModal();
+  try {
+    if (editId) updateEntry('science', 'bioTheory', editId, entry);
+    else addEntry('science', 'bioTheory', entry);
+  } catch(e) {
+    setSyncStatus('❌ ' + (e.message || e), '#A0504A');
+  }
+}
+
 // ── GRAMMAR FORM ──
 function grammarForm(data) {
   const cats = ['음운 변동', '단어 형성', '품사', '문장 성분', '피동·사동', '높임법', '시제·상·서법', '표기법', '기타'];
@@ -2467,6 +2534,7 @@ function openDetail(subject, type, id) {
 
   if (type === 'vocab') showVocabDetail(entry, subject);
   else if (type === 'passage') showPassageDetail(entry, subject);
+  else if (type === 'bioTheory') showBioTheoryDetail(entry);
   else if (type === 'grammar') showGrammarDetail({ ...entry, isBuiltin: false });
   else if (type === 'type-study') showTypeStudyDetail(entry);
   else showProblemDetail(entry, subject, type);
@@ -2509,6 +2577,24 @@ function showPassageDetail(e, subject) {
       <button class="btn-danger" onclick="confirmDelete('${subject}','passage','${e.id}')">삭제</button>
     </div>`;
   openModal(e.title || '지문', body);
+}
+
+function showBioTheoryDetail(e) {
+  const imgHtml = e.image
+    ? `<div class="detail-field"><div class="detail-label">이미지</div><img class="detail-image" src="${e.image}"></div>`
+    : '';
+  const body = `
+    ${field('제목', e.title)}
+    ${field('내용', e.text)}
+    ${imgHtml}
+    ${field('핵심 포인트', e.analysis)}
+    ${field('출처', e.source)}
+    ${field('등록일', new Date(e.created).toLocaleDateString('ko-KR'))}
+    <div class="detail-actions">
+      <button class="btn-edit" onclick="openAddBioTheory('${e.id}')">수정</button>
+      <button class="btn-danger" onclick="confirmDelete('science','bioTheory','${e.id}')">삭제</button>
+    </div>`;
+  openModal(e.title || '이론', body);
 }
 
 function showGrammarDetail(r) {
@@ -2774,137 +2860,7 @@ const MATH_FORMULAS = [
   },
 ];
 
-const BIOLOGY_THEORY = [
-  {
-    category: '생명 현상의 특성과 구성 체계',
-    items: [
-      { name: '생명 현상의 특성 (7가지)', content: '① 세포로 구성 — 세포: 생명의 구조적·기능적 기본 단위\n② 물질대사 — 동화 작용(에너지 흡수)·이화 작용(에너지 방출)\n③ 자극에 대한 반응 — 항상성 유지와 관련\n④ 생식과 유전 — DNA를 통한 형질 전달\n⑤ 발생과 생장 — 수정란→다세포 개체\n⑥ 적응과 진화 — 자연선택에 의한 종 변화\n⑦ 항상성 — 내부 환경 일정 유지 (체온, 혈당, 삼투압 등)' },
-      { name: '생명체의 구성 단계', content: '세포 → 조직 → 기관 → 기관계 → 개체\n동물: 세포 → 조직(상피·근·신경·결합) → 기관 → 기관계(소화·순환·호흡·배설·신경·내분비·생식 등) → 개체\n식물: 세포 → 조직(분열·영구) → 조직계(표피·관다발·기본) → 기관(뿌리·줄기·잎·꽃·열매) → 개체' },
-      { name: '바이러스의 특성', content: '비세포성 — 세포 구조 없음, 세포막·리보솜·효소 없음\n단백질 껍질(캡시드) + 핵산(DNA 또는 RNA) 중 하나만\n숙주 세포 내에서만 증식(살아있는 세포 필요)\n생물적 특성: 유전 물질 보유, 돌연변이, 자연선택\n무생물적 특성: 결정화 가능, 자체 물질대사 불가' },
-    ]
-  },
-  {
-    category: '세포의 구조와 기능',
-    items: [
-      { name: '원핵세포 vs 진핵세포', content: '원핵세포: 핵막 없음, 막성 세포소기관 없음, 리보솜(70S) 있음\n진핵세포: 핵막 있음, 막성 세포소기관 존재, 리보솜(80S)\n원핵: 대장균·남세균 / 진핵: 동물·식물·균류' },
-      { name: '주요 세포소기관 기능', content: '핵: 유전 정보(DNA) 저장, rRNA 합성 (인)\n미토콘드리아: 세포 호흡 (ATP 생산), 기질+내막 구조, 자체 DNA\n리보솜: 단백질 합성 (번역)\n소포체: 단백질/지질 합성·수송 (거친ER·매끈ER)\n골지체: 단백질 가공·분류·분비\n리소좀: 세포 내 소화 (가수분해효소)\n엽록체: 광합성, 스트로마+틸라코이드, 자체 DNA\n중심체: 방추사 형성 (동물세포)\n세포벽(식물): 셀룰로스, 세포 보호·형태 유지' },
-      { name: '세포막과 물질 이동', content: '인지질 이중층 + 단백질 (유동 모자이크 모델)\n수동 수송: 확산·삼투·촉진 확산 → 에너지(ATP) 불필요\n능동 수송: 농도 기울기 역행, ATP 필요 (Na⁺-K⁺ 펌프)\n삼투: 수분이 농도가 낮은 쪽→높은 쪽으로 이동\n동물세포: 저장액→팽창·터짐, 고장액→쪼그라듦\n식물세포: 저장액→팽압 증가(팽만), 고장액→원형질 분리' },
-    ]
-  },
-  {
-    category: '세포 분열 (체세포·감수)',
-    items: [
-      { name: '체세포 분열 단계', content: '간기(G₁→S→G₂): DNA 복제는 S기에서 일어남\n전기: 염색사→염색체 응축, 방추사 형성, 핵막 소실\n중기: 염색체 적도판 배열 (핵형 분석에 이용)\n후기: 동원체 분리→염색분체 분리→양극 이동\n말기: 핵막 재형성, 세포질 분열\n결과: 2n→2n (모세포와 동일 유전 정보)' },
-      { name: '감수 분열 단계', content: '감수 1분열(이형분열): 상동 염색체 분리 → 핵상 2n→n\n  전기I: 2가 염색체 형성, 교차(키아스마)\n  후기I: 상동 염색체 분리\n감수 2분열(동형분열): 염색분체 분리 → n→n\n결과: 1개 모세포→4개 딸세포 (반수체, 유전적 다양)\n난자 형성: 제1극체, 제2극체 형성 (1개 난자 생성)' },
-      { name: '체세포 vs 감수 분열 비교', content: '체세포 분열: 분열 횟수 1회 / 딸세포 2개 / 2n유지 / 유전정보 동일\n감수 분열: 분열 횟수 2회 / 딸세포 4개 / n / 유전정보 다양\n공통: DNA 복제는 각각 1회씩만' },
-      { name: 'DNA양과 염색체 수 변화', content: '체세포 분열: DNA양 S기에 2배 증가→분열 후 원래대로\n감수 분열: S기 2배→1분열 후 반감→2분열 후 1/2\n염색체 수: 감수 1분열 후 반감 (상동 염색체 분리)\n염색분체 수: 감수 2분열 후 반감' },
-    ]
-  },
-  {
-    category: 'DNA와 유전 정보',
-    items: [
-      { name: 'DNA 구조', content: '뉴클레오타이드 = 인산 + 당(디옥시리보스) + 염기\n이중 나선: 두 가닥이 수소 결합으로 연결\n상보적 염기 대응: A-T (수소결합 2개), G-C (수소결합 3개)\n5\'→3\' 방향으로 합성, 두 가닥은 역평행' },
-      { name: 'DNA 복제 (반보존적 복제)', content: '반보존적 복제: 각 딸 DNA는 원본 가닥 1개 + 새 가닥 1개\nHelicase: 이중나선 풀기 / DNA 중합효소: 새 가닥 합성\n원형질 복제 실험: 메셀슨-스탈 실험(¹⁵N → ¹⁴N) 증명' },
-      { name: '유전자 발현 (전사와 번역)', content: '전사: DNA→mRNA (핵 내) RNA 중합효소 사용\n번역: mRNA→단백질 (세포질, 리보솜) tRNA·코돈 이용\n코돈: mRNA 3개 염기 = 1개 아미노산 지정\n개시 코돈: AUG (메티오닌) / 종결 코돈: UAA, UAG, UGA\n유전부호 특성: 보편성·중복성·비중복성' },
-      { name: '오페론 (원핵세포 유전자 조절)', content: '오페론: 프로모터+작동 부위+구조 유전자 단위\n젖당 오페론(대장균): 젖당 없을 때 억제자가 작동 부위 결합→전사 억제\n젖당 있을 때: 젖당-억제자 결합→구조 변형→전사 활성화' },
-    ]
-  },
-  {
-    category: '멘델 유전과 분리의 법칙',
-    items: [
-      { name: '멘델의 유전 법칙', content: '우열의 법칙: F₁에서 우성 형질만 나타남\n분리의 법칙: 한 쌍의 대립 유전자가 배우자 형성 시 분리\nF₂ 표현형 비: 우성:열성 = 3:1\n독립의 법칙: 두 쌍 이상 대립 유전자가 독립적으로 분리\nF₂ 표현형 비: 9:3:3:1 (두 쌍 독립 유전 시)' },
-      { name: '검정 교배 (test cross)', content: '우성 표현형 × 열성 순종(aa)\nAA × aa → 1:0 (모두 우성)\nAa × aa → 1:1 (우성:열성)\n표현형 비로 유전자형 추정 가능' },
-      { name: '연관과 교차', content: '연관: 같은 염색체에 위치한 유전자 → 함께 이동 경향\n상인(coupling): AB/ab / 상반(repulsion): Ab/aB\n교차: 감수 1분열 전기 키아스마에서 발생\n교차율 = (재조합 자손 수/전체 자손 수) × 100%\n교차율 50%→독립 유전과 같은 결과' },
-    ]
-  },
-  {
-    category: '사람의 유전 (ABO혈액형, 반성유전, 복대립, 다인자)',
-    items: [
-      { name: 'ABO 혈액형', content: '복대립 유전: Iᴬ > i, Iᴮ > i (Iᴬ와 Iᴮ는 공우성)\n표현형 A: Iᴬ Iᴬ 또는 Iᴬi\n표현형 B: Iᴮ Iᴮ 또는 Iᴮi\n표현형 AB: Iᴬ Iᴮ\n표현형 O: ii\n응집원(적혈구): A형-A응집원, B형-B응집원\n응집소(혈청): A형-β응집소, B형-α응집소, AB형-없음, O형-α·β모두' },
-      { name: '반성유전 (X 연관 유전)', content: '유전자가 X 염색체에 위치\n적록 색맹·혈우병: X 연관 열성\n남자(XY): 유전자 1개만→반접합자 → 열성 표현형 잘 나타남\n여자(XX): 동형접합 열성일 때만 발현\n색맹 어머니의 아들은 반드시 색맹\n색맹 아버지의 딸은 반드시 보인자 이상' },
-      { name: '다인자 유전', content: '여러 쌍의 유전자가 하나의 형질에 관여\n표현형이 연속적으로 분포 → 정규분포 형태\n예: 피부색, 키, 지능 등\n환경의 영향도 받음 (유전+환경)' },
-      { name: '상염색체 우성·열성 유전 판별', content: '가계도 분석 핵심 원칙:\n① 부모 정상 → 자녀 이환: 열성 유전\n② 부모 이환 → 자녀 정상: 우성 유전\n③ X 연관 판별: 아버지 형질 → 딸에게 반드시 전달(X 연관)\n④ 남녀 발현 빈도 차이 크면 X 연관 의심' },
-    ]
-  },
-  {
-    category: '돌연변이',
-    items: [
-      { name: '유전자 돌연변이 (염기 서열 변화)', content: '점 돌연변이: 치환·삽입·결실\n치환: 한 염기가 다른 염기로 바뀜 → 아미노산 1개 변화 또는 동의(침묵) 돌연변이\n삽입·결실: 읽기 틀 이동(framshift) → 이후 전체 아미노산 변화\n낫 모양 적혈구 빈혈증: 글루탐산→발린 (점 돌연변이)' },
-      { name: '염색체 돌연변이', content: '수적 이상: 비분리 현상으로 발생\n  21번 삼염색체증(다운 증후군): 2n=47, 21번 3개\n  터너 증후군: 44+X (45, X)\n  클라인펠터 증후군: 44+XXY (47, XXY)\n구조 이상: 결실·중복·역위·전좌\n비분리: 감수 1분열 또는 2분열에서 발생' },
-      { name: '돌연변이 유발 요인 (돌연변이원)', content: '물리적: 자외선(피리미딘 이합체), X선·방사선\n화학적: 아질산염, 콜히친(방추사 형성 억제→수적 이상)\n생물적: 바이러스 감염' },
-    ]
-  },
-  {
-    category: '세포 호흡',
-    items: [
-      { name: '세포 호흡 전체 개요', content: '포도당 + O₂ → CO₂ + H₂O + ATP (에너지)\n3단계: 해당과정 → 피루브산 산화 → 크렙스 회로 → 산화적 인산화(전자전달계)\n장소: 세포질(해당) + 미토콘드리아 기질(크렙스) + 내막(전자전달계)\n총 ATP: 포도당 1분자당 최대 약 30~32 ATP' },
-      { name: '해당 과정', content: '장소: 세포질\n포도당(6C) → 피루브산(3C) × 2\nATP 투자 2개 / 생산 4개 → 순생산 2 ATP\nNADH 2개 생성\nO₂ 없어도 진행 (무기 호흡에도 공통)' },
-      { name: '크렙스 회로 (TCA 회로)', content: '장소: 미토콘드리아 기질\n아세틸 CoA(2C) + 옥살아세트산(4C) → 시트르산(6C)\n1회전: CO₂ 2분자 방출, NADH 3개, FADH₂ 1개, GTP 1개\n포도당 1분자 기준(2회전): NADH 6, FADH₂ 2, GTP 2, CO₂ 4' },
-      { name: '전자전달계와 산화적 인산화', content: '장소: 미토콘드리아 내막\nNADH, FADH₂의 전자 → 전자전달계 단백질 통과\n최종 전자 수용체: O₂ → H₂O 생성\n양성자(H⁺) 농도 기울기 → ATP 합성효소 → ATP 생성\nNADH 1개→약 2.5 ATP / FADH₂ 1개→약 1.5 ATP' },
-      { name: '무기 호흡 (발효)', content: '알코올 발효(효모): 피루브산→아세트알데하이드→에탄올 + CO₂\n젖산 발효(동물 근육): 피루브산→젖산\n목적: NAD⁺ 재생 → 해당 과정 지속\nATP 순생산: 2 ATP (해당 과정만)' },
-    ]
-  },
-  {
-    category: '광합성',
-    items: [
-      { name: '광합성 전체 반응식', content: '6CO₂ + 12H₂O + 빛에너지 → C₆H₁₂O₆ + 6O₂ + 6H₂O\n명반응(틸라코이드): 빛에너지→ATP·NADPH 생성, H₂O 분해→O₂ 방출\n탄소 고정(스트로마): CO₂ + ATP + NADPH → 포도당 (캘빈 회로)' },
-      { name: '명반응 (광계 I·II)', content: '광계 II(P680): 물의 광분해(광산화) → O₂ + H⁺ + e⁻\n전자전달계: 광계 II → 광계 I → NADP⁺ 환원\n광계 I(P700): NADPH 생성\n광인산화: H⁺ 농도 기울기 → ATP 합성 (비순환적·순환적)' },
-      { name: '캘빈 회로 (암반응)', content: '장소: 스트로마\nCO₂ 고정: CO₂ + RuBP(5C) → 3-PGA(3C) × 2 (루비스코 촉매)\n3-PGA → G3P (NADPH·ATP 소모)\nG3P → 포도당 또는 RuBP 재생\n1분자 포도당 합성: CO₂ 6, ATP 18, NADPH 12 소모' },
-      { name: '광합성 속도에 영향하는 요인', content: '빛의 세기: 빛보상점(총광합성=호흡), 광포화점 이상에서는 증가 없음\nCO₂ 농도: 캘빈 회로 속도 조절 요인\n온도: 캘빈 회로(효소 반응)에 영향, 명반응은 영향 작음\n엽록소 양·물 공급도 영향' },
-    ]
-  },
-  {
-    category: '신경계와 흥분 전도·전달',
-    items: [
-      { name: '뉴런의 구조와 종류', content: '뉴런 구성: 세포체 + 수상돌기 + 축삭돌기\n감각 뉴런: 자극→중추 (구심성)\n운동 뉴런: 중추→효과기 (원심성)\n연합 뉴런: 중추 내 처리\n수초(미엘린): 도약 전도→빠른 전도 속도' },
-      { name: '휴지 전위와 활동 전위', content: '휴지 전위: 약 -70 mV (Na⁺ 세포 밖>안, K⁺ 세포 안>밖)\n활동 전위: 자극→탈분극(Na⁺ 유입, -70→+35 mV)→재분극(K⁺ 유출)→과분극→휴지\n역치: 활동 전위 발생 최소 자극 세기\n실무율: 역치 이상에서 크기 관계없이 동일한 활동 전위' },
-      { name: '흥분 전도 vs 전달', content: '전도: 하나의 뉴런 내 활동 전위 이동 (양방향 가능, 단 해부학적으로 단방향)\n전달: 시냅스를 통한 뉴런 간 신호 전달 (단방향, 시냅스 전→후)\n시냅스: 시냅스 소포 내 신경전달물질→시냅스 틈→수용체 결합' },
-      { name: '중추 신경계 구조', content: '뇌: 대뇌(고등 기능)·소뇌(평형·운동 조절)·간뇌(시상·시상하부: 항상성)·중뇌(안구 운동)·뇌줄기(연수·뇌교)\n척수: 반사 중추, 뇌-말초 연결\n자율 신경계: 교감(흥분·위급)·부교감(이완·회복) — 길항 작용\n교감 신경: 심장 촉진·소화 억제 / 부교감: 심장 억제·소화 촉진' },
-    ]
-  },
-  {
-    category: '호르몬과 항상성 조절',
-    items: [
-      { name: '혈당 조절', content: '인슐린(이자 β세포): 혈당↑→분비→세포의 포도당 흡수↑, 글리코젠 합성↑→혈당↓\n글루카곤(이자 α세포): 혈당↓→분비→글리코젠 분해→혈당↑\n당뇨병: 1형(인슐린 분비 부족), 2형(인슐린 수용체 이상)\n길항 호르몬: 인슐린 vs 글루카곤' },
-      { name: '체온 조절', content: '체온 조절 중추: 시상하부\n체온↑: 땀 분비↑, 피부 혈관 확장, 대사량 감소\n체온↓: 털 세움(소름), 피부 혈관 수축, 떨림(근육 수축)→열 발생\n갑상샘 호르몬·아드레날린: 대사량 증가에 관여' },
-      { name: '삼투압 조절', content: '항이뇨호르몬(ADH, 뇌하수체 후엽): 삼투압↑→ADH 분비↑→콩팥세관 수분 재흡수↑→삼투압 정상화\n음수 증가 시 삼투압↓→ADH↓→소변량↑\n알도스테론(부신 피질): Na⁺ 재흡수 증가→삼투압 및 혈압 조절' },
-      { name: '갑상샘 호르몬과 음성 피드백', content: '시상하부 → TRH → 뇌하수체 전엽 → TSH → 갑상샘 → 티록신(T₄, T₃)\n티록신↑→시상하부·뇌하수체 억제 (음성 피드백)\n크레틴증(어린이 갑상샘 기능 저하): 성장·발달 지연\n그레이브스병: 갑상샘 기능 항진' },
-    ]
-  },
-  {
-    category: '면역 (비특이적·특이적)',
-    items: [
-      { name: '비특이적 방어 (선천 면역)', content: '1차 방어선: 피부·점막·섬모·위산\n2차 방어선: 식세포 작용(호중구·대식세포), 염증 반응, 발열\n염증 반응: 히스타민 분비→혈관 확장·투과성↑→식세포 이동\n발열: 체온↑→병원체 증식 억제, 면역 세포 활성화' },
-      { name: '특이적 방어 (적응 면역)', content: '체액성 면역: B 림프구→형질세포→항체(IgG 등) 분비\n세포성 면역: T 림프구(세포독성 T세포)→감염 세포 직접 파괴\n항원 제시: 대식세포→보조 T세포 활성화\n기억 세포: 2차 면역 반응 신속·강력 (예방접종 원리)' },
-      { name: '항원-항체 반응 특성', content: '특이성: 특정 항원에만 결합 (열쇠-자물쇠 모형)\n항체 구조: Y자형 단백질 (불변 영역 + 가변 영역)\n응집 반응·침전 반응 등으로 항원 무력화\n알레르기: 무해한 항원에 과민 반응 (IgE 관여)' },
-      { name: '면역 세포의 발달', content: '모든 면역세포: 골수 줄기세포에서 기원\nB 림프구: 골수에서 성숙\nT 림프구: 골수에서 생성→가슴샘(흉선)에서 성숙\nNK세포: 선천 면역, 감염·암세포 파괴\n에이즈(AIDS): HIV→보조 T세포 파괴→면역 결핍' },
-    ]
-  },
-  {
-    category: '생태계 구성과 상호작용',
-    items: [
-      { name: '생태계 구성 요소', content: '생물적 요소: 생산자(식물·조류)·소비자(동물)·분해자(세균·균류)\n비생물적 요소: 빛·온도·물·토양·공기(CO₂·O₂)\n비생물→생물: 작용 / 생물→비생물: 반작용\n생물간 영향: 상호작용' },
-      { name: '개체군 내 상호작용', content: '텃세(territory): 공간·먹이 경쟁 배제\n순위제: 개체 간 서열 (우두머리 효과)\n리더제: 집단 이동 시 리더 존재\n분업: 사회적 분업 (벌, 개미)\n집합 효과: 무리 생활→생존율↑ vs 경쟁↑' },
-      { name: '개체군 간 상호작용', content: '포식-피식: 로트카-볼테라 모델→포식자·피식자 주기적 진동\n경쟁: 경쟁 배제 원리(생태적 지위 완전 중복→공존 불가)\n공생: 상리공생(+/+, 콩과식물·뿌리혹박테리아)·편리공생(+/0)·편해공생(+/-에 유사하나 피해 없음)\n기생: 숙주(+) → 기생체(-) 피해\n중립: 0/0' },
-    ]
-  },
-  {
-    category: '물질 순환과 에너지 흐름',
-    items: [
-      { name: '에너지 흐름 (단방향)', content: '태양에너지→생산자(광합성)→1차 소비자→2차 소비자→…\n에너지 효율: 각 영양단계 약 10~20%만 다음 단계로 이동\n에너지는 순환하지 않고 열로 소산 (단방향 흐름)\n에너지 피라미드: 하위 영양단계가 상위보다 반드시 큼' },
-      { name: '탄소 순환', content: '대기 CO₂ ↔ 생산자(광합성·호흡) ↔ 소비자(호흡) ↔ 분해자\n화석 연료 연소: 대기 CO₂ 급증 → 온실 효과\n탄소는 먹이 사슬을 통해 유기물 형태로 이동\n바다: 대기 CO₂ 흡수 (탄소 흡수원)' },
-      { name: '질소 순환', content: '대기 N₂(79%)는 대부분 생물 이용 불가\n질소 고정: 뿌리혹박테리아·남세균→NH₃·NH₄⁺\n질화 작용: NH₄⁺→NO₂⁻→NO₃⁻ (아질산균·질산균)\n질산 환원: NO₃⁻→NH₄⁺ (식물 흡수)\n탈질화: NO₃⁻→N₂ (탈질소 세균, 토양으로 N₂ 환원)\n동물: 단백질 분해→NH₃→암모니아(배설)→분해자 환원' },
-    ]
-  },
-  {
-    category: '개체군과 군집',
-    items: [
-      { name: '개체군 성장 모델', content: '이론적 성장(J형): dN/dt = rN\n실제 성장(S형·로지스틱): dN/dt = rN(1 - N/K)\nK: 환경 저항(먹이·공간·포식자·질병)으로 결정되는 최대 개체수\n최대 성장률: N = K/2 일 때\n환경 저항: 개체군 밀도 증가→사망률↑·출생률↓' },
-      { name: '개체군 밀도와 생존 곡선', content: '개체군 밀도 = 개체 수/단위 면적\n표지-재포획법: N = (M×n)/m (M: 표지수, n: 재포획수, m: 재포획 중 표지 수)\n생존 곡선 유형:\n  Ⅰ형(볼록): 늦게 사망 (인간, 코끼리)\n  Ⅱ형(직선): 연령에 무관 (파충류, 조류 일부)\n  Ⅲ형(오목): 초기 대량 사망 (어류, 굴)' },
-      { name: '군집의 구조와 천이', content: '우점종: 군집 내 개체수·바이오매스 가장 많은 종\n핵심종: 개체수는 적지만 군집 구조에 크게 영향\n천이: 개척자→중간단계→극상(climax)\n건성 천이: 지의류·이끼→초본→관목→교목 (극상 숲)\n습성 천이: 수초→부들→갈대→교목 습지\n층상 구조: 수직 분포 (교목층→관목층→초본층→지표층)' },
-    ]
-  },
-];
+// BIOLOGY_THEORY 삭제됨 — Firestore bioTheory로 대체
 
 const EARTH_THEORY = [
   {
