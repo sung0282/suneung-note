@@ -3252,6 +3252,12 @@ function ebsGetPool(filter) {
       .filter(e => e.source === '모르는 단어')
       .map(e => [e.word, e.meaning, 3]);
   }
+  if (filter === 4) {
+    // '내가 추가한 단어'
+    return getDB().english.vocab
+      .filter(e => e.source !== '모르는 단어')
+      .map(e => [e.word, e.meaning, 4]);
+  }
   return all; // filter === 2: 전체
 }
 
@@ -3272,8 +3278,8 @@ function ebsPickRandom(arr, n) {
 function initEbsQuiz(filter) {
   if (filter !== undefined) ebsQuiz.filter = filter;
   const fullPool = ebsGetPool(ebsQuiz.filter);
-  // '모르는 단어'는 전부 다 출제 (50개 미만일 수 있으므로), 나머지는 50개 무작위
-  const picked = ebsQuiz.filter === 3
+  // '모르는 단어'·'내가 추가한 단어'는 전부 다 출제, 나머지는 50개 무작위
+  const picked = (ebsQuiz.filter === 3 || ebsQuiz.filter === 4)
     ? ebsShuffle(fullPool)
     : ebsPickRandom(fullPool, EBS_SESSION_SIZE);
   ebsQuiz.pool = picked;
@@ -3363,16 +3369,18 @@ function renderEbsQuiz() {
   }
 
   // FILTER_NAMES[filter값] = 표시 이름  (0=수능특강영어영역, 1=수능특강영어독해연습, 2=전체, 3=모르는단어)
-  const FILTER_NAMES = ['수능특강 영어영역', '수능특강 영어독해연습', '전체', '📌 모르는 단어'];
-  const SOURCE_NAMES = ['수능특강 영어영역', '수능특강 영어독해연습', '전체', '모르는 단어'];
+  const FILTER_NAMES = ['수능특강 영어영역', '수능특강 영어독해연습', '전체', '📌 모르는 단어', '📝 내가 추가한 단어'];
+  const SOURCE_NAMES = ['수능특강 영어영역', '수능특강 영어독해연습', '전체', '모르는 단어', '내가 추가한 단어'];
   const total = ebsQuiz.pool.length;
   const done = ebsQuiz.known + ebsQuiz.dunno;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  // 탭 표시 순서: 전체(2) → 수능특강 영어영역(0) → 수능특강 영어독해연습(1) → 모르는 단어(3)
-  const filterBtns = [2, 0, 1, 3].map(f => {
-    const label = f === 3 ? '📌 모르는 단어' : FILTER_NAMES[f];
-    const activeStyle = f === 3 && ebsQuiz.filter === 3 ? 'background:#EF5350;border-color:#EF5350;color:#fff;' : '';
+  // 탭 표시 순서: 전체(2) → 수능특강 영어영역(0) → 수능특강 영어독해연습(1) → 내가 추가한 단어(4) → 모르는 단어(3)
+  const filterBtns = [2, 0, 1, 4, 3].map(f => {
+    const label = FILTER_NAMES[f];
+    const isSpecial = f === 3 || f === 4;
+    const specialColor = f === 3 ? '#EF5350' : 'var(--english)';
+    const activeStyle = isSpecial && ebsQuiz.filter === f ? `background:${specialColor};border-color:${specialColor};color:#fff;` : '';
     return `<button class="ebs-filter-btn ${ebsQuiz.filter === f ? 'active' : ''}" style="${activeStyle}" onclick="initEbsQuiz(${f})">${label}</button>`;
   }).join('');
 
