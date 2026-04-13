@@ -3794,10 +3794,10 @@ function renderPlannerSheet() {
   const makeRows = (section, placeholder) => data[section].map(t => `
     <div class="planner-task-row${t.done?' done':''}">
       <button class="planner-task-check" onclick="plannerToggleTask('${section}',${t.id})">${t.done?'✓':''}</button>
-      <input class="planner-task-input" data-sec="${section}" type="text" value="${esc(t.text)}"
+      <input class="planner-task-input" data-sec="${section}" data-id="${t.id}" type="text" value="${esc(t.text)}"
         placeholder="${placeholder}"
-        oninput="plannerUpdateTask('${section}',${t.id},this.value)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();plannerAddTask('${section}');}">
+        onblur="plannerUpdateTask('${section}',${t.id},this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();plannerUpdateTask('${section}',${t.id},this.value);plannerAddTask('${section}');}">
       <button class="planner-task-del" onclick="plannerDeleteTask('${section}',${t.id})">✕</button>
     </div>`).join('');
 
