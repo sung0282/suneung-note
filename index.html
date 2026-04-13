@@ -1829,11 +1829,7 @@ function renderEnglishAllSections() {
   const search = (document.getElementById('search-english')?.value || '').toLowerCase();
   const container = document.getElementById('content-english');
 
-  // 어휘 섹션
-  const vocabEntries = db.english.vocab.filter(e => e.source !== '모르는 단어' && matchSearch(e, search));
-  const vocabHtml = vocabEntries.length === 0
-    ? `<div class="no-entries" style="padding:20px 0"><div class="no-entries-icon" style="font-size:28px">🌐</div><p style="font-size:13px">${search ? '검색 결과가 없어요' : '아직 어휘가 없어요'}</p></div>`
-    : vocabEntries.sort(byDate).map(e => renderEntryCard(e, 'english', 'vocab')).join('');
+  // 어휘 섹션 — 직접 추가 어휘는 EBS 단어장 안에 그룹으로 표시됨
 
   // 지문분석 섹션
   const passageEntries = db.english.passage.filter(e => matchSearch(e, search));
@@ -1852,7 +1848,6 @@ function renderEnglishAllSections() {
       </div>
       <div id="ebs-quiz-container"></div>
       <div id="ebs-wordlist-container"></div>
-      ${vocabHtml}
     </div>
     <div class="page-section">
       <div class="page-section-header">
@@ -3575,7 +3570,14 @@ function ebsWordSearch(raw) {
     ))
     .sort((a, b) => new Date(b.created) - new Date(a.created));
 
-  // ② EBS 단어장 그룹
+  // ② 내가 직접 추가한 단어
+  const myWords = getDB().english.vocab
+    .filter(e => e.source !== '모르는 단어' && (
+      !query || (e.word||'').toLowerCase().includes(query) || (e.meaning||'').includes(query)
+    ))
+    .sort((a, b) => new Date(b.created) - new Date(a.created));
+
+  // ③ EBS 단어장 그룹
   const ebsGroups = EBS_SOURCES.map((name, srcIdx) => ({
     name,
     words: EBS_VOCAB.filter(v => v[2] === srcIdx && (
@@ -3583,8 +3585,9 @@ function ebsWordSearch(raw) {
     ))
   }));
 
-  const totalFiltered = dunnoWords.length + ebsGroups.reduce((s, g) => s + g.words.length, 0);
+  const totalFiltered = dunnoWords.length + myWords.length + ebsGroups.reduce((s, g) => s + g.words.length, 0);
 
+  // ── 모르는 단어 HTML ──
   let dunnoHtml = '';
   if (dunnoWords.length > 0) {
     const groupId = 'dunno';
@@ -3612,13 +3615,64 @@ function ebsWordSearch(raw) {
       </div>`;
   }
 
+  // ── 내가 추가한 단어 HTML (50개씩 접기/펼치기) ──
+  let myVocabHtml = '';
+  if (myWords.length > 0) {
+    const gid = 'myvocab';
+    let innerHtml;
+    const makeRow = e => `
+      <tr onclick="openDetail('english','vocab','${e.id}')" style="cursor:pointer;">
+        <td>${esc(e.word||'')}</td>
+        <td>${esc(e.meaning||'')}${e.source ? ' <span style=\"color:var(--text2);font-size:10px;\">' + esc(e.source) + '</span>' : ''}</td>
+      </tr>`;
+    if (isSearch || myWords.length <= EBS_CHUNK) {
+      innerHtml = `<table class="ebs-word-table">${myWords.map(makeRow).join('')}</table>`;
+    } else {
+      const chunks = [];
+      for (let i = 0; i < myWords.length; i += EBS_CHUNK) chunks.push(myWords.slice(i, i + EBS_CHUNK));
+      innerHtml = chunks.map((chunk, cIdx) => {
+        const subId = gid + '_' + cIdx;
+        const start = cIdx * EBS_CHUNK + 1;
+        const end = Math.min((cIdx + 1) * EBS_CHUNK, myWords.length);
+        return `
+          <div class="grammar-category" style="margin:4px 0;">
+            <div class="grammar-category-header" style="background:var(--bg);border-radius:10px;padding:9px 12px;" onclick="toggleEbsGroup('${subId}')">
+              <span class="grammar-category-label" style="font-size:12px;font-weight:600;">${start}–${end}번</span>
+              <div class="grammar-category-meta">
+                <span class="grammar-category-count">${chunk.length}개</span>
+                <button class="grammar-toggle-btn" id="ebs-wbtn-${subId}" style="width:20px;height:20px;font-size:12px;">＋</button>
+              </div>
+            </div>
+            <div class="ebs-wordlist-body" id="ebs-wbody-${subId}">
+              <table class="ebs-word-table">${chunk.map(makeRow).join('')}</table>
+            </div>
+          </div>`;
+      }).join('');
+    }
+    const bodyOpen = isSearch ? ' open' : '';
+    const btnLabel = isSearch ? '－' : '＋';
+    myVocabHtml = `
+      <div class="ebs-wordlist-group grammar-category">
+        <div class="grammar-category-header" style="border-left:3px solid var(--english);" onclick="toggleEbsGroup('${gid}')">
+          <span class="grammar-category-label" style="color:var(--english);">📝 내가 추가한 단어</span>
+          <div class="grammar-category-meta">
+            <span class="grammar-category-count">${myWords.length}개</span>
+            <button class="grammar-toggle-btn" id="ebs-wbtn-${gid}">${btnLabel}</button>
+          </div>
+        </div>
+        <div class="ebs-wordlist-body${bodyOpen}" id="ebs-wbody-${gid}">
+          ${innerHtml}
+        </div>
+      </div>`;
+  }
+
   const ebsHtml = ebsGroups.map((g, gIdx) =>
     ebsMakeGroupHtml('src' + gIdx, g.name, g.words, isSearch, null)
   ).join('');
 
   results.innerHTML = totalFiltered === 0
     ? `<div class="ebs-no-result">검색 결과가 없어요</div>`
-    : dunnoHtml + ebsHtml;
+    : dunnoHtml + myVocabHtml + ebsHtml;
 }
 
 async function ebsDeleteDunno(id) {
