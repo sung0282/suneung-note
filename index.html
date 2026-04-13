@@ -1543,7 +1543,13 @@ function processSnapshot(snapshot) {
   });
   renderHome();
   renderSubject(state.currentPage);
-  if (state.currentPage === 'planner') { renderPlannerCal(); renderPlannerSheet(); }
+  if (state.currentPage === 'planner') {
+    renderPlannerCal();
+    // 입력 중이면 시트 재렌더 안 함 — input 파괴+포커스 유실 방지
+    if (!document.querySelector('.planner-task-input:focus, .planner-field-area:focus, .planner-field-input:focus')) {
+      renderPlannerSheet();
+    }
+  }
 }
 
 function initFirestore() {
