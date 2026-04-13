@@ -3278,8 +3278,8 @@ function ebsPickRandom(arr, n) {
 function initEbsQuiz(filter) {
   if (filter !== undefined) ebsQuiz.filter = filter;
   const fullPool = ebsGetPool(ebsQuiz.filter);
-  // '모르는 단어'·'내가 추가한 단어'는 전부 다 출제, 나머지는 50개 무작위
-  const picked = (ebsQuiz.filter === 3 || ebsQuiz.filter === 4)
+  // '모르는 단어'는 전부 출제, 나머지는 50개 무작위
+  const picked = ebsQuiz.filter === 3
     ? ebsShuffle(fullPool)
     : ebsPickRandom(fullPool, EBS_SESSION_SIZE);
   ebsQuiz.pool = picked;
