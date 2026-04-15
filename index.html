@@ -3727,10 +3727,10 @@ function init() {
   // 마지막 섹션/페이지 복원
   try {
     const lastSection = localStorage.getItem('lastSection') || 'study';
+    const lastLifeTab = localStorage.getItem('lastLifeTab'); // switchSection 전에 먼저 읽기
     if (lastSection === 'life') {
+      if (lastLifeTab) lifeState.currentTab = lastLifeTab; // switchSection이 이 값을 사용
       switchSection('life');
-      const lastLifeTab = localStorage.getItem('lastLifeTab');
-      if (lastLifeTab) goToLife(lastLifeTab);
     } else {
       const last = localStorage.getItem('lastPage');
       if (last && document.getElementById('page-' + last)) goTo(last);
