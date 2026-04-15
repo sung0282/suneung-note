@@ -1788,7 +1788,7 @@ function goTo(page) {
   document.getElementById(`page-${page}`).classList.add('active');
 
   state.currentPage = page;
-  try { sessionStorage.setItem('lastPage', page); } catch(e) {}
+  try { localStorage.setItem('lastPage', page); } catch(e) {}
 
   // FAB
   const fab = document.getElementById('fab');
@@ -3283,7 +3283,7 @@ function switchSection(section) {
     if (fab) fab.className = 'fab hidden';
     goToLife(lifeState.currentTab);
   }
-  try { sessionStorage.setItem('lastSection', section); } catch(e) {}
+  try { localStorage.setItem('lastSection', section); } catch(e) {}
 }
 
 function goToLife(tab) {
@@ -3303,7 +3303,7 @@ function goToLife(tab) {
     if (lifeFab) lifeFab.className = 'life-fab ' + tab;
     renderLifePage(tab);
   }
-  try { sessionStorage.setItem('lastLifeTab', tab); } catch(e) {}
+  try { localStorage.setItem('lastLifeTab', tab); } catch(e) {}
 }
 
 // ══════════════════════════════════════════
@@ -3635,13 +3635,13 @@ function init() {
 
   // 마지막 섹션/페이지 복원
   try {
-    const lastSection = sessionStorage.getItem('lastSection') || 'study';
+    const lastSection = localStorage.getItem('lastSection') || 'study';
     if (lastSection === 'life') {
       switchSection('life');
-      const lastLifeTab = sessionStorage.getItem('lastLifeTab');
+      const lastLifeTab = localStorage.getItem('lastLifeTab');
       if (lastLifeTab) goToLife(lastLifeTab);
     } else {
-      const last = sessionStorage.getItem('lastPage');
+      const last = localStorage.getItem('lastPage');
       if (last && document.getElementById('page-' + last)) goTo(last);
     }
   } catch(e) {}
