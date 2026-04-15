@@ -228,6 +228,15 @@
       font-family: inherit; transition: all 0.2s;
     }
     .life-reorder-toggle.active { background: var(--text); color: #fff; border-color: var(--text); }
+    .life-cat-filter {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    .life-cat-btn {
+      font-size: 12px; padding: 4px 12px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      color: var(--text2); cursor: pointer; font-family: inherit; transition: all 0.18s;
+    }
+    .life-cat-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
 
     /* ─── PLANNER (redesigned) ─── */
     .planner-cal {
@@ -3548,23 +3557,47 @@ const LIFE_LABELS = { foods: 'Foods', workout: 'Work Out', travel: 'Travel' };
 const LIFE_ICONS = { foods: '🍽', workout: '💪', travel: '✈️' };
 const LIFE_COLORS = { foods: 'var(--foods)', workout: 'var(--workout)', travel: 'var(--travel)' };
 
+let lifeCatFilter = {}; // { foods: '한식', travel: null } — null이면 전체
+
+function setLifeCatFilter(tab, cat) {
+  lifeCatFilter[tab] = cat;
+  renderLifePage(tab);
+}
+
 function renderLifePage(tab) {
   const container = document.getElementById('content-life-' + tab);
   if (!container) return;
   // order 우선, 없으면 created 날짜순 (오래된 것 위로)
-  const entries = (getDB().life[tab] || []).sort((a, b) => {
+  const allEntries = (getDB().life[tab] || []).sort((a, b) => {
     const oa = typeof a.order === 'number' ? a.order : 999999;
     const ob = typeof b.order === 'number' ? b.order : 999999;
     if (oa !== ob) return oa - ob;
     return new Date(a.created) - new Date(b.created);
   });
-  if (entries.length === 0) {
+  if (allEntries.length === 0) {
     container.innerHTML = `<div class="no-entries"><div class="no-entries-icon">${LIFE_ICONS[tab]}</div><p>아직 기록이 없어요.<br>＋ 버튼으로 추가해보세요!</p></div>`;
     return;
   }
+  // 카테고리 필터 버튼 생성
+  const cats = LIFE_CATEGORIES[tab] || [];
+  const activeCat = lifeCatFilter[tab] || null;
+  const catBtns = `<div class="life-cat-filter">
+    <button class="life-cat-btn${!activeCat ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
+    ${cats.map(c => {
+      const count = allEntries.filter(e => e.category === c).length;
+      if (count === 0) return '';
+      return `<button class="life-cat-btn${activeCat === c ? ' active' : ''}" onclick="setLifeCatFilter('${tab}','${c}')">${esc(c)} ${count}</button>`;
+    }).join('')}
+  </div>`;
+
+  // 필터 적용
+  const entries = activeCat ? allEntries.filter(e => e.category === activeCat) : allEntries;
+
   const isReorder = lifeReorderMode[tab];
   container.className = isReorder ? 'life-reorder-on' : '';
-  container.innerHTML = entries.map((e, idx) => {
+  const cardsHtml = entries.length === 0
+    ? `<div class="no-entries" style="padding:20px 0;"><p style="font-size:13px;">'${esc(activeCat)}' 카테고리에 글이 없어요</p></div>`
+    : entries.map((e, idx) => {
     const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
     const catTag = e.category ? `<span class="ec-tag">${esc(e.category)}</span>` : '';
     const thumbSrc = (e.images && e.images[0]) || e.image || null;
@@ -3583,6 +3616,7 @@ function renderLifePage(tab) {
       </div>
     </div>`;
   }).join('');
+  container.innerHTML = catBtns + cardsHtml;
 }
 
 let lifeReorderMode = {};
