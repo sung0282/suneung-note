@@ -154,7 +154,7 @@
     }
     .top-nav-link {
       font-family: 'Eulyoo1945', Georgia, serif;
-      font-size: 15px;
+      font-size: 30px;
       font-weight: 600;
       color: rgba(67,48,46,0.4);
       cursor: pointer;
@@ -1411,9 +1411,9 @@
 
   <!-- LIFE TABS (visible when LIFE active) -->
   <div class="life-tabs" id="life-tabs" style="display:none;">
-    <button class="ltab active" data-life="foods" onclick="goToLife('foods')">🍽 Foods</button>
-    <button class="ltab" data-life="workout" onclick="goToLife('workout')">💪 Work Out</button>
-    <button class="ltab" data-life="travel" onclick="goToLife('travel')">✈️ Travel</button>
+    <button class="ltab active" data-life="foods" onclick="goToLife('foods')">Foods</button>
+    <button class="ltab" data-life="workout" onclick="goToLife('workout')">Work Out</button>
+    <button class="ltab" data-life="travel" onclick="goToLife('travel')">Travel</button>
   </div>
 </div>
 
@@ -3306,7 +3306,7 @@ function goToLife(tab) {
 // ══════════════════════════════════════════
 
 const LIFE_CATEGORIES = {
-  foods: ['한식', '양식', '일식', '중식', '디저트', '기타'],
+  foods: ['한식', '양식', '일식', '중식', '커피', '디저트', '기타'],
   workout: ['헬스', '러닝', '홈트', '스트레칭', '기타'],
   travel: ['국내', '해외', '계획중', '기타']
 };
