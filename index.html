@@ -3275,9 +3275,9 @@ function switchSection(section) {
     goTo(state.currentPage);
   } else {
     studyEl.style.display = 'none';
-    lifeEl.style.display = '';
+    lifeEl.style.display = 'block';
     studyTabs.style.display = 'none';
-    lifeTabs.style.display = '';
+    lifeTabs.style.display = 'flex';
     navStudy.classList.remove('active');
     navLife.classList.add('active');
     if (fab) fab.className = 'fab hidden';
