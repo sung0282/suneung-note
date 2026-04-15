@@ -154,7 +154,7 @@
     }
     .top-nav-link {
       font-family: 'Eulyoo1945', Georgia, serif;
-      font-size: 30px;
+      font-size: 22px;
       font-weight: 600;
       color: rgba(67,48,46,0.4);
       cursor: pointer;
@@ -1386,7 +1386,6 @@
 <div class="sticky-top-wrap">
   <!-- TOP NAVIGATION -->
   <div class="top-nav" id="top-nav">
-    <div class="top-nav-left">Y.</div>
     <div class="top-nav-right">
       <button class="top-nav-link active" id="nav-study" onclick="switchSection('study')">Study</button>
       <button class="top-nav-link" id="nav-life" onclick="switchSection('life')">Life</button>
@@ -1571,12 +1570,7 @@
     </div>
   </div>
   <div id="page-life-workout" class="life-page">
-    <div class="page-section">
-      <div class="page-section-header">
-        <span class="page-section-title">Work Out</span>
-      </div>
-      <div id="content-life-workout"></div>
-    </div>
+    <div id="workout-content"></div>
   </div>
   <div id="page-life-travel" class="life-page">
     <div class="page-section">
@@ -1661,11 +1655,16 @@ function processSnapshot(snapshot) {
     science: { biology: [], earth: [], bioTheory: [] }
   };
   plannerCache = {};
+  woCache = {};
   snapshot.forEach(doc => {
     const data = { ...doc.data(), id: doc.id };
     const { subject, type } = data;
     if (subject === 'planner' && data.dateKey) {
       plannerCache[data.dateKey] = data;
+      return;
+    }
+    if (subject === 'workout' && data.dateKey) {
+      woCache[data.dateKey] = data;
       return;
     }
     if (appData[subject] && Array.isArray(appData[subject][type])) {
@@ -3296,9 +3295,186 @@ function goToLife(tab) {
   const pageEl = document.getElementById('page-life-' + tab);
   if (pageEl) pageEl.classList.add('active');
   const lifeFab = document.getElementById('life-fab');
-  if (lifeFab) lifeFab.className = 'life-fab ' + tab;
-  renderLifePage(tab);
+  if (tab === 'workout') {
+    // workout은 플래너 구조 — FAB 숨김
+    if (lifeFab) lifeFab.className = 'life-fab hidden';
+    renderWorkout();
+  } else {
+    if (lifeFab) lifeFab.className = 'life-fab ' + tab;
+    renderLifePage(tab);
+  }
   try { sessionStorage.setItem('lastLifeTab', tab); } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+// WORKOUT PLANNER (study planner와 동일 구조)
+// ══════════════════════════════════════════
+
+let woSelDate = new Date();
+let woCalY = woSelDate.getFullYear();
+let woCalM = woSelDate.getMonth();
+let woCache = {}; // 인메모리 캐시
+
+function woDayKey(d) { return `wo_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`; }
+
+function woDayLoad(d) {
+  const key = woDayKey(d);
+  const saved = woCache[key] || null;
+  if (!saved) return { memo: '', exercises: [] };
+  if (!saved.exercises) saved.exercises = [];
+  return JSON.parse(JSON.stringify(saved));
+}
+
+function woDaySave(d, data) {
+  const key = woDayKey(d);
+  woCache[key] = JSON.parse(JSON.stringify(data));
+  const saveData = { ...data, subject: 'workout', type: 'day', dateKey: key, id: key };
+  fsDB.collection('entries').doc(key).set(saveData)
+    .catch(e => console.error('workout save error', e));
+}
+
+function woNavMonth(dir) {
+  woCalM += dir;
+  if (woCalM < 0)  { woCalM = 11; woCalY--; }
+  if (woCalM > 11) { woCalM = 0;  woCalY++; }
+  renderWoCal();
+}
+
+function woSelectDate(y, m, d) {
+  woSelDate = new Date(y, m, d);
+  renderWoCal();
+  renderWoSheet();
+}
+
+function woSaveField(field, val) {
+  const data = woDayLoad(woSelDate);
+  data[field] = val;
+  woDaySave(woSelDate, data);
+}
+
+function woAddTask() {
+  const data = woDayLoad(woSelDate);
+  data.exercises.push({ id: Date.now(), text: '', done: false });
+  woDaySave(woSelDate, data);
+  renderWoSheet();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.wo-task-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 30);
+}
+
+function woToggleTask(id) {
+  const data = woDayLoad(woSelDate);
+  const t = data.exercises.find(t => t.id === id);
+  if (t) t.done = !t.done;
+  woDaySave(woSelDate, data);
+  renderWoSheet();
+}
+
+function woDeleteTask(id) {
+  const data = woDayLoad(woSelDate);
+  data.exercises = data.exercises.filter(t => t.id !== id);
+  woDaySave(woSelDate, data);
+  renderWoSheet();
+}
+
+function woUpdateTask(id, text) {
+  const data = woDayLoad(woSelDate);
+  const t = data.exercises.find(t => t.id === id);
+  if (t) { t.text = text; woDaySave(woSelDate, data); }
+}
+
+function renderWorkout() {
+  const container = document.getElementById('workout-content');
+  if (!container) return;
+  container.innerHTML = `<div id="wo-cal-area"></div><div id="wo-sheet-area"></div>`;
+  renderWoCal();
+  renderWoSheet();
+}
+
+function renderWoCal() {
+  const wrap = document.getElementById('wo-cal-area');
+  if (!wrap) return;
+  const today = new Date();
+  const MN = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const DN = ['일','월','화','수','목','금','토'];
+  const firstDay = new Date(woCalY, woCalM, 1).getDay();
+  const daysInMonth = new Date(woCalY, woCalM + 1, 0).getDate();
+  let cells = '';
+  for (let i = 0; i < firstDay; i++) cells += `<div class="planner-cal-cell"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getFullYear()===woCalY && today.getMonth()===woCalM && today.getDate()===d;
+    const isSel = woSelDate.getFullYear()===woCalY && woSelDate.getMonth()===woCalM && woSelDate.getDate()===d;
+    const hasData = !!woCache[woDayKey(new Date(woCalY, woCalM, d))];
+    const cls = `planner-cal-cell${isToday?' today':''}${isSel?' selected':''}${hasData&&!isSel?' has-data':''}`;
+    cells += `<div class="${cls}" onclick="woSelectDate(${woCalY},${woCalM},${d})">${d}</div>`;
+  }
+  wrap.innerHTML = `
+    <div class="planner-cal" style="border-color:var(--workout);">
+      <div class="planner-cal-header">
+        <button class="planner-cal-nav" onclick="woNavMonth(-1)">‹</button>
+        <span class="planner-cal-title">${woCalY}년 ${MN[woCalM]}</span>
+        <button class="planner-cal-nav" onclick="woNavMonth(1)">›</button>
+      </div>
+      <div class="planner-cal-days">
+        ${DN.map((d,i)=>`<div class="planner-cal-dayname${i===0?' sun':i===6?' sat':''}">${d}</div>`).join('')}
+      </div>
+      <div class="planner-cal-grid">${cells}</div>
+    </div>`;
+}
+
+function renderWoSheet() {
+  const wrap = document.getElementById('wo-sheet-area');
+  if (!wrap) return;
+  const data = woDayLoad(woSelDate);
+  const d = woSelDate;
+  const DNAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const exList = data.exercises;
+  const doneCount = exList.filter(t => t.done).length;
+  const total = exList.length;
+  const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
+
+  const rows = exList.map(t => `
+    <div class="planner-task-row${t.done?' done':''}">
+      <button class="planner-task-check" onclick="woToggleTask(${t.id})">${t.done?'✓':''}</button>
+      <input class="wo-task-input planner-task-input" data-id="${t.id}" type="text" value="${esc(t.text)}"
+        placeholder="운동 입력..."
+        onblur="woUpdateTask(${t.id},this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();woUpdateTask(${t.id},this.value);woAddTask();}">
+      <button class="planner-task-del" onclick="woDeleteTask(${t.id})">✕</button>
+    </div>`).join('');
+
+  const blankLines = Array(Math.max(0, 5 - exList.length)).fill(0)
+    .map(() => `<div class="planner-ruled-line"></div>`).join('');
+
+  wrap.innerHTML = `
+    <div class="planner-sheet" style="border-color:var(--workout);">
+      <div class="planner-sheet-top">
+        <div class="planner-sheet-date-col">
+          <div class="planner-sheet-daynum">${d.getDate()}</div>
+          <div class="planner-sheet-dayname">${DNAMES[d.getDay()]}</div>
+        </div>
+        <div class="planner-sheet-fields">
+          <div class="planner-sheet-row">
+            <div class="planner-sheet-cell wide">
+              <div class="planner-field-label">MEMO</div>
+              <textarea class="planner-field-area" rows="2" placeholder="오늘 운동 메모..."
+                onchange="woSaveField('memo',this.value)">${esc(data.memo)}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="planner-sheet-body">
+        ${total > 0 ? `<div class="planner-progress-bar"><div class="planner-progress-fill" style="width:${pct}%;background:var(--workout);"></div></div>` : ''}
+        <div class="planner-task-header">
+          <span class="planner-field-label" style="margin:0;">EXERCISES${total>0?' · '+doneCount+'/'+total:''}</span>
+          <button class="planner-task-add-btn" onclick="woAddTask()">+ 추가</button>
+        </div>
+        ${rows}
+        ${total === 0 ? '<div class="planner-no-tasks" style="padding:10px 14px;">운동 계획을 추가해봐!</div>' : ''}
+        ${blankLines}
+      </div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════
