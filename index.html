@@ -217,10 +217,17 @@
     .life-order-btn {
       width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border);
       background: var(--surface); color: var(--text2); font-size: 14px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; padding: 0;
+      display: none; align-items: center; justify-content: center; padding: 0;
       transition: background 0.15s;
     }
     .life-order-btn:active { background: var(--surface2); }
+    .life-reorder-on .life-order-btn { display: flex; }
+    .life-reorder-toggle {
+      border: 1.5px solid var(--border); background: var(--surface); color: var(--text2);
+      font-size: 16px; padding: 4px 12px; border-radius: 20px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .life-reorder-toggle.active { background: var(--text); color: #fff; border-color: var(--text); }
 
     /* ─── PLANNER (redesigned) ─── */
     .planner-cal {
@@ -1572,6 +1579,7 @@
     <div class="page-section">
       <div class="page-section-header">
         <span class="page-section-title">Foods</span>
+        <button class="life-reorder-toggle" id="reorder-btn-foods" onclick="toggleLifeReorder('foods')">⇄</button>
       </div>
       <div id="content-life-foods"></div>
     </div>
@@ -1583,6 +1591,7 @@
     <div class="page-section">
       <div class="page-section-header">
         <span class="page-section-title">Travel</span>
+        <button class="life-reorder-toggle" id="reorder-btn-travel" onclick="toggleLifeReorder('travel')">⇄</button>
       </div>
       <div id="content-life-travel"></div>
     </div>
@@ -3553,6 +3562,8 @@ function renderLifePage(tab) {
     container.innerHTML = `<div class="no-entries"><div class="no-entries-icon">${LIFE_ICONS[tab]}</div><p>아직 기록이 없어요.<br>＋ 버튼으로 추가해보세요!</p></div>`;
     return;
   }
+  const isReorder = lifeReorderMode[tab];
+  container.className = isReorder ? 'life-reorder-on' : '';
   container.innerHTML = entries.map((e, idx) => {
     const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
     const catTag = e.category ? `<span class="ec-tag">${esc(e.category)}</span>` : '';
@@ -3572,6 +3583,15 @@ function renderLifePage(tab) {
       </div>
     </div>`;
   }).join('');
+}
+
+let lifeReorderMode = {};
+
+function toggleLifeReorder(tab) {
+  lifeReorderMode[tab] = !lifeReorderMode[tab];
+  const btn = document.getElementById('reorder-btn-' + tab);
+  if (btn) btn.classList.toggle('active', lifeReorderMode[tab]);
+  renderLifePage(tab);
 }
 
 function lifeReorder(tab, id, direction) {
