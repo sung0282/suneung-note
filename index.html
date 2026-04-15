@@ -214,6 +214,13 @@
     .life-fab.workout { background: var(--workout); }
     .life-fab.travel { background: var(--travel); }
     .life-fab.hidden { display: none; }
+    .life-order-btn {
+      width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text2); font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+      transition: background 0.15s;
+    }
+    .life-order-btn:active { background: var(--surface2); }
 
     /* ─── PLANNER (redesigned) ─── */
     .planner-cal {
@@ -3535,16 +3542,24 @@ const LIFE_COLORS = { foods: 'var(--foods)', workout: 'var(--workout)', travel: 
 function renderLifePage(tab) {
   const container = document.getElementById('content-life-' + tab);
   if (!container) return;
-  const entries = (getDB().life[tab] || []).sort((a, b) => new Date(b.created) - new Date(a.created));
+  // order 우선, 없으면 created 날짜순 (오래된 것 위로)
+  const entries = (getDB().life[tab] || []).sort((a, b) => {
+    const oa = typeof a.order === 'number' ? a.order : 999999;
+    const ob = typeof b.order === 'number' ? b.order : 999999;
+    if (oa !== ob) return oa - ob;
+    return new Date(a.created) - new Date(b.created);
+  });
   if (entries.length === 0) {
     container.innerHTML = `<div class="no-entries"><div class="no-entries-icon">${LIFE_ICONS[tab]}</div><p>아직 기록이 없어요.<br>＋ 버튼으로 추가해보세요!</p></div>`;
     return;
   }
-  container.innerHTML = entries.map(e => {
+  container.innerHTML = entries.map((e, idx) => {
     const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
     const catTag = e.category ? `<span class="ec-tag">${esc(e.category)}</span>` : '';
     const thumbSrc = (e.images && e.images[0]) || e.image || null;
     const imgThumb = thumbSrc ? `<div style="width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;"><img src="${thumbSrc}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
+    const upBtn = idx > 0 ? `<button class="life-order-btn" onclick="event.stopPropagation();lifeReorder('${tab}','${e.id}',-1)">↑</button>` : '';
+    const dnBtn = idx < entries.length - 1 ? `<button class="life-order-btn" onclick="event.stopPropagation();lifeReorder('${tab}','${e.id}',1)">↓</button>` : '';
     return `<div class="entry-card" style="border-left:3px solid ${LIFE_COLORS[tab]};" onclick="openLifeDetail('${tab}','${e.id}')">
       <div style="display:flex;gap:12px;align-items:center;">
         ${imgThumb}
@@ -3553,9 +3568,36 @@ function renderLifePage(tab) {
           ${e.memo ? `<div class="ec-preview">${esc(e.memo)}</div>` : ''}
           ${catTag ? `<div class="ec-tags">${catTag}</div>` : ''}
         </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">${upBtn}${dnBtn}</div>
       </div>
     </div>`;
   }).join('');
+}
+
+function lifeReorder(tab, id, direction) {
+  const entries = (getDB().life[tab] || []).sort((a, b) => {
+    const oa = typeof a.order === 'number' ? a.order : 999999;
+    const ob = typeof b.order === 'number' ? b.order : 999999;
+    if (oa !== ob) return oa - ob;
+    return new Date(a.created) - new Date(b.created);
+  });
+  const idx = entries.findIndex(e => e.id === id);
+  const swapIdx = idx + direction;
+  if (idx < 0 || swapIdx < 0 || swapIdx >= entries.length) return;
+
+  // order 값 교환 (없으면 인덱스 기준으로 할당)
+  const orderA = typeof entries[idx].order === 'number' ? entries[idx].order : idx;
+  const orderB = typeof entries[swapIdx].order === 'number' ? entries[swapIdx].order : swapIdx;
+
+  // 로컬 업데이트
+  entries[idx].order = orderB;
+  entries[swapIdx].order = orderA;
+
+  // Firestore 업데이트
+  fsDB.collection('entries').doc(entries[idx].id).update({ order: orderB }).catch(e => console.error(e));
+  fsDB.collection('entries').doc(entries[swapIdx].id).update({ order: orderA }).catch(e => console.error(e));
+
+  renderLifePage(tab);
 }
 
 function openAddLife(type, editId) {
@@ -3595,11 +3637,15 @@ function submitLife(type, editId) {
   setSyncStatus('💾 저장 중...');
   const title = v('f-title').trim();
   if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
+  // 새 엔트리에 order 자동 부여 (기존 최대값 + 1)
+  const existingEntries = getDB().life[type] || [];
+  const maxOrder = existingEntries.reduce((max, e) => Math.max(max, typeof e.order === 'number' ? e.order : -1), -1);
   const entry = {
     title,
     category: v('f-category'),
     images: [...pendingImages],
-    memo: v('f-memo').trim()
+    memo: v('f-memo').trim(),
+    ...(editId ? {} : { order: maxOrder + 1 })
   };
   pendingImages = [];
   closeModal();
