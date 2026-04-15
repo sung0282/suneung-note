@@ -3410,7 +3410,7 @@ function renderWoCal() {
     cells += `<div class="${cls}" onclick="woSelectDate(${woCalY},${woCalM},${d})">${d}</div>`;
   }
   wrap.innerHTML = `
-    <div class="planner-cal" style="border-color:var(--workout);">
+    <div class="planner-cal">
       <div class="planner-cal-header">
         <button class="planner-cal-nav" onclick="woNavMonth(-1)">‹</button>
         <span class="planner-cal-title">${woCalY}년 ${MN[woCalM]}</span>
@@ -3448,7 +3448,7 @@ function renderWoSheet() {
     .map(() => `<div class="planner-ruled-line"></div>`).join('');
 
   wrap.innerHTML = `
-    <div class="planner-sheet" style="border-color:var(--workout);">
+    <div class="planner-sheet">
       <div class="planner-sheet-top">
         <div class="planner-sheet-date-col">
           <div class="planner-sheet-daynum">${d.getDate()}</div>
@@ -3465,7 +3465,7 @@ function renderWoSheet() {
         </div>
       </div>
       <div class="planner-sheet-body">
-        ${total > 0 ? `<div class="planner-progress-bar"><div class="planner-progress-fill" style="width:${pct}%;background:var(--workout);"></div></div>` : ''}
+        ${total > 0 ? `<div class="planner-progress-bar"><div class="planner-progress-fill" style="width:${pct}%"></div></div>` : ''}
         <div class="planner-task-header">
           <span class="planner-field-label" style="margin:0;">EXERCISES${total>0?' · '+doneCount+'/'+total:''}</span>
           <button class="planner-task-add-btn" onclick="woAddTask()">+ 추가</button>
