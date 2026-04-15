@@ -3320,8 +3320,11 @@ function woDayKey(d) { return `wo_${d.getFullYear()}_${d.getMonth()}_${d.getDate
 function woDayLoad(d) {
   const key = woDayKey(d);
   const saved = woCache[key] || null;
-  if (!saved) return { memo: '', exercises: [] };
-  if (!saved.exercises) saved.exercises = [];
+  if (!saved) return { memo: '', sungho: [], yeriel: [] };
+  if (!saved.sungho) saved.sungho = [];
+  if (!saved.yeriel) saved.yeriel = [];
+  // 구버전 호환 (exercises → sungho로 이전)
+  if (saved.exercises && !saved.sungho.length) { saved.sungho = saved.exercises; delete saved.exercises; }
   return JSON.parse(JSON.stringify(saved));
 }
 
@@ -3352,35 +3355,35 @@ function woSaveField(field, val) {
   woDaySave(woSelDate, data);
 }
 
-function woAddTask() {
+function woAddTask(section) {
   const data = woDayLoad(woSelDate);
-  data.exercises.push({ id: Date.now(), text: '', done: false });
+  data[section].push({ id: Date.now(), text: '', done: false });
   woDaySave(woSelDate, data);
   renderWoSheet();
   setTimeout(() => {
-    const inputs = document.querySelectorAll('.wo-task-input');
+    const inputs = document.querySelectorAll(`.wo-task-input[data-sec="${section}"]`);
     if (inputs.length) inputs[inputs.length - 1].focus();
   }, 30);
 }
 
-function woToggleTask(id) {
+function woToggleTask(section, id) {
   const data = woDayLoad(woSelDate);
-  const t = data.exercises.find(t => t.id === id);
+  const t = data[section].find(t => t.id === id);
   if (t) t.done = !t.done;
   woDaySave(woSelDate, data);
   renderWoSheet();
 }
 
-function woDeleteTask(id) {
+function woDeleteTask(section, id) {
   const data = woDayLoad(woSelDate);
-  data.exercises = data.exercises.filter(t => t.id !== id);
+  data[section] = data[section].filter(t => t.id !== id);
   woDaySave(woSelDate, data);
   renderWoSheet();
 }
 
-function woUpdateTask(id, text) {
+function woUpdateTask(section, id, text) {
   const data = woDayLoad(woSelDate);
-  const t = data.exercises.find(t => t.id === id);
+  const t = data[section].find(t => t.id === id);
   if (t) { t.text = text; woDaySave(woSelDate, data); }
 }
 
@@ -3429,22 +3432,25 @@ function renderWoSheet() {
   const data = woDayLoad(woSelDate);
   const d = woSelDate;
   const DNAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-  const exList = data.exercises;
-  const doneCount = exList.filter(t => t.done).length;
-  const total = exList.length;
+
+  const allTasks = [...data.sungho, ...data.yeriel];
+  const doneCount = allTasks.filter(t => t.done).length;
+  const total = allTasks.length;
   const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
 
-  const rows = exList.map(t => `
+  const makeRows = (section, placeholder) => data[section].map(t => `
     <div class="planner-task-row${t.done?' done':''}">
-      <button class="planner-task-check" onclick="woToggleTask(${t.id})">${t.done?'✓':''}</button>
-      <input class="wo-task-input planner-task-input" data-id="${t.id}" type="text" value="${esc(t.text)}"
-        placeholder="운동 입력..."
-        onblur="woUpdateTask(${t.id},this.value)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();woUpdateTask(${t.id},this.value);woAddTask();}">
-      <button class="planner-task-del" onclick="woDeleteTask(${t.id})">✕</button>
+      <button class="planner-task-check" onclick="woToggleTask('${section}',${t.id})">${t.done?'✓':''}</button>
+      <input class="wo-task-input planner-task-input" data-sec="${section}" data-id="${t.id}" type="text" value="${esc(t.text)}"
+        placeholder="${placeholder}"
+        onblur="woUpdateTask('${section}',${t.id},this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();woUpdateTask('${section}',${t.id},this.value);woAddTask('${section}');}">
+      <button class="planner-task-del" onclick="woDeleteTask('${section}',${t.id})">✕</button>
     </div>`).join('');
 
-  const blankLines = Array(Math.max(0, 5 - exList.length)).fill(0)
+  const blankSungho = Array(Math.max(0, 5 - data.sungho.length)).fill(0)
+    .map(() => `<div class="planner-ruled-line"></div>`).join('');
+  const blankYeriel = Array(Math.max(0, 4 - data.yeriel.length)).fill(0)
     .map(() => `<div class="planner-ruled-line"></div>`).join('');
 
   wrap.innerHTML = `
@@ -3466,13 +3472,24 @@ function renderWoSheet() {
       </div>
       <div class="planner-sheet-body">
         ${total > 0 ? `<div class="planner-progress-bar"><div class="planner-progress-fill" style="width:${pct}%"></div></div>` : ''}
+
+        <!-- 성호 섹션 -->
         <div class="planner-task-header">
-          <span class="planner-field-label" style="margin:0;">EXERCISES${total>0?' · '+doneCount+'/'+total:''}</span>
-          <button class="planner-task-add-btn" onclick="woAddTask()">+ 추가</button>
+          <span class="planner-field-label" style="margin:0;">성호${data.sungho.length>0?' · '+data.sungho.filter(t=>t.done).length+'/'+data.sungho.length:''}</span>
+          <button class="planner-task-add-btn" onclick="woAddTask('sungho')">+ 추가</button>
         </div>
-        ${rows}
-        ${total === 0 ? '<div class="planner-no-tasks" style="padding:10px 14px;">운동 계획을 추가해봐!</div>' : ''}
-        ${blankLines}
+        ${makeRows('sungho', '운동 입력...')}
+        ${data.sungho.length === 0 ? '<div class="planner-no-tasks" style="padding:10px 14px;">운동 계획을 추가해봐!</div>' : ''}
+        ${blankSungho}
+
+        <!-- 승혜 섹션 -->
+        <div class="planner-task-header" style="border-top:1.5px solid #c6c09c;">
+          <span class="planner-field-label" style="margin:0;">승혜${data.yeriel.length>0?' · '+data.yeriel.filter(t=>t.done).length+'/'+data.yeriel.length:''}</span>
+          <button class="planner-task-add-btn" onclick="woAddTask('yeriel')">+ 추가</button>
+        </div>
+        ${makeRows('yeriel', '운동 입력...')}
+        ${data.yeriel.length === 0 ? '<div class="planner-no-tasks" style="padding:10px 14px;">운동 계획을 추가해봐!</div>' : ''}
+        ${blankYeriel}
       </div>
     </div>`;
 }
