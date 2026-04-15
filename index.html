@@ -1711,9 +1711,12 @@ function initFirestore() {
 function getDB() { return appData; }
 
 function addEntry(subject, type, entry) {
-  // 이미지가 너무 크면 제외하고 저장
+  // 이미지가 너무 크면 제외하고 저장 (단일 image 호환 + 배열 images)
   if (entry.image && entry.image.length > 800000) {
     entry = { ...entry, image: null };
+  }
+  if (entry.images && Array.isArray(entry.images)) {
+    entry = { ...entry, images: entry.images.filter(img => !img || img.length <= 800000) };
   }
   const docRef = fsDB.collection('entries').doc();
   const data = { ...entry, subject, type, id: docRef.id, created: new Date().toISOString() };
@@ -2340,20 +2343,21 @@ async function submitVocab(subject, editId) {
 // ── PASSAGE FORM ──
 function passageForm(subject, data) {
   const c = subject;
-  pendingPassageImage = null;
-  const existingImg = data?.image || null;
+  // 기존 이미지 로드 (단일 image → 배열 호환)
+  const existing = data?.images || (data?.image ? [data.image] : []);
+  pendingImages = [...existing];
   return `
     <div class="form-field"><label class="form-label">지문 제목*</label>
       <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="예) 2024 수능 34번 지문"></div>
     <div class="form-field"><label class="form-label">지문 원문 / 핵심 내용</label>
       <textarea class="form-textarea large" id="f-text" placeholder="지문 내용 또는 핵심 단락을 입력하세요">${esc(data?.text||'')}</textarea>
       <div style="margin-top:8px;">
-        <div class="image-upload-area" id="passage-upload-area" ${existingImg ? 'style="display:none"' : ''}>
-          <input type="file" accept="image/*" onchange="handlePassageImageUpload(event)">
+        <div class="image-upload-area" id="passage-upload-area">
+          <input type="file" accept="image/*" multiple onchange="handlePassageImageUpload(event)">
           <div class="upload-icon">📷</div>
-          <div class="upload-text">사진으로 추가하기</div>
+          <div class="upload-text">사진 추가하기 (여러 장 가능)</div>
         </div>
-        <div id="passage-img-preview">${existingImg ? `<div class="image-preview-wrap"><img src="${existingImg}"><button class="remove-image-btn" onclick="removePassageImage()">✕</button></div>` : ''}</div>
+        <div id="passage-img-preview">${existing.map((src, i) => `<div class="image-preview-wrap" style="margin-bottom:8px;"><img src="${src}"><button class="remove-image-btn" onclick="removePassageImage(${i})">✕</button></div>`).join('')}</div>
       </div>
     </div>
     <div class="form-field"><label class="form-label">문제가 되었던 부분</label>
@@ -2365,55 +2369,60 @@ function passageForm(subject, data) {
     <button class="form-submit ${c}" onclick="submitPassage('${subject}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
 
-let pendingPassageImage = null;
+let pendingImages = [];
 
 function handlePassageImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const MAX = 900;
-      let w = img.width, h = img.height;
-      if (w > MAX) { h = h * MAX / w; w = MAX; }
-      if (h > MAX) { w = w * MAX / h; h = MAX; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      pendingPassageImage = canvas.toDataURL('image/jpeg', 0.6);
-      document.getElementById('passage-img-preview').innerHTML =
-        `<div class="image-preview-wrap"><img src="${pendingPassageImage}"><button class="remove-image-btn" onclick="removePassageImage()">✕</button></div>`;
-      document.getElementById('passage-upload-area').style.display = 'none';
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 900;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = h * MAX / w; w = MAX; }
+        if (h > MAX) { w = w * MAX / h; h = MAX; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        pendingImages.push(canvas.toDataURL('image/jpeg', 0.6));
+        renderPassageImagePreviews();
+      };
+      img.src = ev.target.result;
     };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
+  // input 초기화 (같은 파일 다시 선택 가능하도록)
+  e.target.value = '';
 }
 
-function removePassageImage() {
-  pendingPassageImage = null;
-  document.getElementById('passage-img-preview').innerHTML = '';
-  document.getElementById('passage-upload-area').style.display = '';
+function renderPassageImagePreviews() {
+  const preview = document.getElementById('passage-img-preview');
+  if (!preview) return;
+  preview.innerHTML = pendingImages.map((src, i) =>
+    `<div class="image-preview-wrap" style="margin-bottom:8px;"><img src="${src}"><button class="remove-image-btn" onclick="removePassageImage(${i})">✕</button></div>`
+  ).join('');
+}
+
+function removePassageImage(index) {
+  pendingImages.splice(index, 1);
+  renderPassageImagePreviews();
 }
 
 function submitPassage(subject, editId) {
   setSyncStatus('💾 저장 중...');
   const title = v('f-title').trim();
   if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
-  const imageData = pendingPassageImage || (editId ? (() => {
-    const list = subject === 'korean' ? appData.korean.passage : appData.english.passage;
-    return (list || []).find(e => e.id === editId)?.image || null;
-  })() : null);
   const entry = {
     title,
     text: v('f-text').trim(),
     hardSentences: v('f-hard').trim(),
     analysis: v('f-analysis').trim(),
     source: v('f-source').trim(),
-    image: imageData
+    images: [...pendingImages]
   };
-  pendingPassageImage = null;
+  pendingImages = [];
   closeModal();
   try {
     if (editId) updateEntry(subject, 'passage', editId, entry);
@@ -2434,20 +2443,20 @@ function openAddBioTheory(editId) {
 }
 
 function bioTheoryForm(data) {
-  pendingPassageImage = null;
-  const existingImg = data?.image || null;
+  const existing = data?.images || (data?.image ? [data.image] : []);
+  pendingImages = [...existing];
   return `
     <div class="form-field"><label class="form-label">제목*</label>
       <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="예) 세포 분열과 DNA 복제"></div>
     <div class="form-field"><label class="form-label">내용 / 설명</label>
       <textarea class="form-textarea large" id="f-text" placeholder="이론 내용을 정리하세요">${esc(data?.text||'')}</textarea>
       <div style="margin-top:8px;">
-        <div class="image-upload-area" id="passage-upload-area" ${existingImg ? 'style="display:none"' : ''}>
-          <input type="file" accept="image/*" onchange="handlePassageImageUpload(event)">
+        <div class="image-upload-area" id="passage-upload-area">
+          <input type="file" accept="image/*" multiple onchange="handlePassageImageUpload(event)">
           <div class="upload-icon">📷</div>
-          <div class="upload-text">사진으로 추가하기</div>
+          <div class="upload-text">사진 추가하기 (여러 장 가능)</div>
         </div>
-        <div id="passage-img-preview">${existingImg ? `<div class="image-preview-wrap"><img src="${existingImg}"><button class="remove-image-btn" onclick="removePassageImage()">✕</button></div>` : ''}</div>
+        <div id="passage-img-preview">${existing.map((src, i) => `<div class="image-preview-wrap" style="margin-bottom:8px;"><img src="${src}"><button class="remove-image-btn" onclick="removePassageImage(${i})">✕</button></div>`).join('')}</div>
       </div>
     </div>
     <div class="form-field"><label class="form-label">핵심 포인트</label>
@@ -2461,15 +2470,14 @@ function submitBioTheory(editId) {
   setSyncStatus('💾 저장 중...');
   const title = v('f-title').trim();
   if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
-  const imageData = pendingPassageImage || (editId ? (appData.science.bioTheory.find(e => e.id === editId)?.image || null) : null);
   const entry = {
     title,
     text: v('f-text').trim(),
     analysis: v('f-analysis').trim(),
     source: v('f-source').trim(),
-    image: imageData
+    images: [...pendingImages]
   };
-  pendingPassageImage = null;
+  pendingImages = [];
   closeModal();
   try {
     if (editId) updateEntry('science', 'bioTheory', editId, entry);
@@ -2680,8 +2688,9 @@ function showVocabDetail(e, subject) {
 }
 
 function showPassageDetail(e, subject) {
-  const imgHtml = e.image
-    ? `<div class="detail-field"><div class="detail-label">지문 이미지</div><img class="detail-image" src="${e.image}"></div>`
+  const imgs = e.images || (e.image ? [e.image] : []);
+  const imgHtml = imgs.length > 0
+    ? `<div class="detail-field"><div class="detail-label">이미지 (${imgs.length}장)</div>${imgs.map(src => `<img class="detail-image" src="${src}" style="margin-bottom:8px;">`).join('')}</div>`
     : '';
   const body = `
     ${field('제목', e.title)}
@@ -2699,8 +2708,9 @@ function showPassageDetail(e, subject) {
 }
 
 function showBioTheoryDetail(e) {
-  const imgHtml = e.image
-    ? `<div class="detail-field"><div class="detail-label">이미지</div><img class="detail-image" src="${e.image}"></div>`
+  const imgs = e.images || (e.image ? [e.image] : []);
+  const imgHtml = imgs.length > 0
+    ? `<div class="detail-field"><div class="detail-label">이미지 (${imgs.length}장)</div>${imgs.map(src => `<img class="detail-image" src="${src}" style="margin-bottom:8px;">`).join('')}</div>`
     : '';
   const body = `
     ${field('제목', e.title)}
@@ -3519,7 +3529,8 @@ function renderLifePage(tab) {
   container.innerHTML = entries.map(e => {
     const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
     const catTag = e.category ? `<span class="ec-tag">${esc(e.category)}</span>` : '';
-    const imgThumb = e.image ? `<div style="width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;"><img src="${e.image}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
+    const thumbSrc = (e.images && e.images[0]) || e.image || null;
+    const imgThumb = thumbSrc ? `<div style="width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;"><img src="${thumbSrc}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
     return `<div class="entry-card" style="border-left:3px solid ${LIFE_COLORS[tab]};" onclick="openLifeDetail('${tab}','${e.id}')">
       <div style="display:flex;gap:12px;align-items:center;">
         ${imgThumb}
@@ -3543,8 +3554,8 @@ function openAddLife(type, editId) {
 }
 
 function lifeForm(type, data) {
-  pendingPassageImage = null;
-  const existingImg = data?.image || null;
+  const existing = data?.images || (data?.image ? [data.image] : []);
+  pendingImages = [...existing];
   const catOptions = LIFE_CATEGORIES[type].map(c =>
     `<option value="${c}" ${data?.category === c ? 'selected' : ''}>${c}</option>`
   ).join('');
@@ -3554,12 +3565,12 @@ function lifeForm(type, data) {
     <div class="form-field"><label class="form-label">제목*</label>
       <input class="form-input" id="f-title" value="${esc(data?.title||'')}" placeholder="제목을 입력하세요"></div>
     <div class="form-field"><label class="form-label">사진</label>
-      <div class="image-upload-area" id="passage-upload-area" ${existingImg ? 'style="display:none"' : ''}>
-        <input type="file" accept="image/*" onchange="handlePassageImageUpload(event)">
+      <div class="image-upload-area" id="passage-upload-area">
+        <input type="file" accept="image/*" multiple onchange="handlePassageImageUpload(event)">
         <div class="upload-icon">📷</div>
-        <div class="upload-text">사진 추가하기</div>
+        <div class="upload-text">사진 추가하기 (여러 장 가능)</div>
       </div>
-      <div id="passage-img-preview">${existingImg ? `<div class="image-preview-wrap"><img src="${existingImg}"><button class="remove-image-btn" onclick="removePassageImage()">✕</button></div>` : ''}</div>
+      <div id="passage-img-preview">${existing.map((src, i) => `<div class="image-preview-wrap" style="margin-bottom:8px;"><img src="${src}"><button class="remove-image-btn" onclick="removePassageImage(${i})">✕</button></div>`).join('')}</div>
     </div>
     <div class="form-field"><label class="form-label">메모</label>
       <textarea class="form-textarea large" id="f-memo" placeholder="메모를 입력하세요">${esc(data?.memo||'')}</textarea></div>
@@ -3570,14 +3581,13 @@ function submitLife(type, editId) {
   setSyncStatus('💾 저장 중...');
   const title = v('f-title').trim();
   if (!title) { setSyncStatus('⚠️ 제목 필수', '#A0504A'); return; }
-  const imageData = pendingPassageImage || (editId ? (getDB().life[type] || []).find(e => e.id === editId)?.image || null : null);
   const entry = {
     title,
     category: v('f-category'),
-    image: imageData,
+    images: [...pendingImages],
     memo: v('f-memo').trim()
   };
-  pendingPassageImage = null;
+  pendingImages = [];
   closeModal();
   try {
     if (editId) updateEntry('life', type, editId, entry);
@@ -3591,8 +3601,9 @@ function submitLife(type, editId) {
 function openLifeDetail(type, id) {
   const entry = (getDB().life[type] || []).find(e => e.id === id);
   if (!entry) return;
-  const imgHtml = entry.image
-    ? `<div class="detail-field"><div class="detail-label">사진</div><img class="detail-image" src="${entry.image}"></div>`
+  const imgs = entry.images || (entry.image ? [entry.image] : []);
+  const imgHtml = imgs.length > 0
+    ? `<div class="detail-field"><div class="detail-label">사진 (${imgs.length}장)</div>${imgs.map(src => `<img class="detail-image" src="${src}" style="margin-bottom:8px;">`).join('')}</div>`
     : '';
   const body = `
     ${field('카테고리', entry.category)}
