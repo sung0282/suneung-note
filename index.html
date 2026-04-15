@@ -3475,7 +3475,7 @@ function renderWoSheet() {
 
         <!-- 성호 섹션 -->
         <div class="planner-task-header">
-          <span class="planner-field-label" style="margin:0;">성호${data.sungho.length>0?' · '+data.sungho.filter(t=>t.done).length+'/'+data.sungho.length:''}</span>
+          <span class="planner-field-label" style="margin:0;font-size:14px;">성호${data.sungho.length>0?' · '+data.sungho.filter(t=>t.done).length+'/'+data.sungho.length:''}</span>
           <button class="planner-task-add-btn" onclick="woAddTask('sungho')">+ 추가</button>
         </div>
         ${makeRows('sungho', '운동 입력...')}
@@ -3484,7 +3484,7 @@ function renderWoSheet() {
 
         <!-- 승혜 섹션 -->
         <div class="planner-task-header" style="border-top:1.5px solid #c6c09c;">
-          <span class="planner-field-label" style="margin:0;">승혜${data.yeriel.length>0?' · '+data.yeriel.filter(t=>t.done).length+'/'+data.yeriel.length:''}</span>
+          <span class="planner-field-label" style="margin:0;font-size:14px;">승혜${data.yeriel.length>0?' · '+data.yeriel.filter(t=>t.done).length+'/'+data.yeriel.length:''}</span>
           <button class="planner-task-add-btn" onclick="woAddTask('yeriel')">+ 추가</button>
         </div>
         ${makeRows('yeriel', '운동 입력...')}
