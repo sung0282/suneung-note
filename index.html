@@ -1680,6 +1680,19 @@ function processSnapshot(snapshot) {
       renderPlannerSheet();
     }
   }
+  // Life 페이지 재렌더 (section-life가 보이는 상태일 때만)
+  try {
+    const lifeEl = document.getElementById('section-life');
+    if (lifeEl && lifeEl.style.display !== 'none' && typeof renderLifePage === 'function') {
+      const tab = lifeState?.currentTab;
+      if (tab && tab !== 'workout') renderLifePage(tab);
+      if (tab === 'workout') {
+        if (!document.querySelector('.wo-task-input:focus, .planner-field-area:focus')) {
+          renderWorkout();
+        }
+      }
+    }
+  } catch(e) {}
 }
 
 function initFirestore() {
