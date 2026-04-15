@@ -1652,7 +1652,8 @@ function processSnapshot(snapshot) {
     korean: { vocab: [], passage: [], grammar: [] },
     math: { problems: [] },
     english: { vocab: [], passage: [], 'type-study': [] },
-    science: { biology: [], earth: [], bioTheory: [] }
+    science: { biology: [], earth: [], bioTheory: [] },
+    life: { foods: [], workout: [], travel: [] }
   };
   plannerCache = {};
   woCache = {};
@@ -1804,7 +1805,7 @@ function goTo(page) {
   document.getElementById(`page-${page}`).classList.add('active');
 
   state.currentPage = page;
-  try { localStorage.setItem('lastPage', page); } catch(e) {}
+  try { localStorage.setItem('lastPage', page); localStorage.setItem('lastSection', 'study'); } catch(e) {}
 
   // FAB
   const fab = document.getElementById('fab');
@@ -3326,7 +3327,7 @@ function goToLife(tab) {
     if (lifeFab) lifeFab.className = 'life-fab ' + tab;
     renderLifePage(tab);
   }
-  try { localStorage.setItem('lastLifeTab', tab); } catch(e) {}
+  try { localStorage.setItem('lastLifeTab', tab); localStorage.setItem('lastSection', 'life'); } catch(e) {}
 }
 
 // ══════════════════════════════════════════
