@@ -1745,6 +1745,49 @@ function initFirestore() {
   });
 
   plannerMigrateLocalStorage();
+
+  // === 임시: 운동 데이터 일괄 입력 (1회 실행 후 자동 삭제 예정) ===
+  setTimeout(() => {
+    if (localStorage.getItem('wo_bulk_done')) return;
+    const mk = (texts) => texts.map((t, i) => ({ id: Date.now() + i * 7 + Math.random()*1000|0, text: t, done: false }));
+    const bulk = [
+      { key:'wo_2026_3_3', memo:'성호: 체감 난이도 중 · 피로 없음 / 수면 8h\n승혜: 체감 난이도 중 · 피로 있음(생리중) / 수면 8h',
+        sungho: mk(['실내 달리기 4km(30분)']), yeriel: mk(['실내 달리기 2.7km(30분)']) },
+      { key:'wo_2026_3_4', memo:'성호: 체감 난이도 중(오랜만에 해서 근육 자극이 큼) · 피로 없음 / 수면 10h\n승혜: 체감 난이도 상 · 피로 없음 / 수면 8h',
+        sungho: mk(['스쿼트 40kg 3×8','RDL 40kg 3×8','벤치 30kg 3×8','바벨 로우 20kg 3×8']),
+        yeriel: mk(['고블릿 스쿼트 5kg 3×10','RDL 20kg 3×10','덤벨 벤치프레스 2kg 3×10','시티드 로우 머신 15kg 3×10','플랭크 3×20초']) },
+      { key:'wo_2026_3_6', memo:'성호: 체감 난이도 하 · 피로 없음 / 수면 10h\n승혜: 체감 난이도 하 · 피로 없음 / 수면 8h',
+        sungho: mk(['실내 달리기 3km(30분)']), yeriel: mk(['실내 달리기 2.43km(30분)']) },
+      { key:'wo_2026_3_8', memo:'성호: 체감 난이도 상 · 약간 피로 / 수면 6h\n승혜: 체감 난이도 중 · 피로 없음 / 수면 7h',
+        sungho: mk(['스쿼트 40kg 3×10','RDL 40kg 3×10','벤치프레스 30kg 3×10','바벨로우 25kg 3×10']),
+        yeriel: mk(['고블릿 스쿼트 5kg 3×10','RDL 20kg 3×10','덤벨 벤치 6kg 3×10','시티드 로우 15kg 3×10','플랭크 3×30초']) },
+      { key:'wo_2026_3_9', memo:'성호: 체감 난이도 중 · 피로 없음 / 수면 8h\n승혜: 체감 난이도 상 · 피로 없음 / 수면 8h',
+        sungho: mk(['실내 달리기 3.52km(30분), 경사도 2']),
+        yeriel: mk(['실내 달리기 0.87km(10분), 경사도 2','스텝밀(천국의 계단): 속도 6 × 5분','쿨다운 속도 4 × 5분','속도 6 × 5분','쿨다운 속도 4 × 5분 (총 1036계단)']) },
+      { key:'wo_2026_3_11', memo:'성호: 체감 난이도 상 · 피로 없음 / 수면 10h\n승혜: 체감 난이도 중 · 피로 없음 / 수면 8h',
+        sungho: mk(['스쿼트 40kg 3×12','RDL 40kg 3×12','벤치프레스 30kg 3×12','바벨 로우 25kg 3×12']),
+        yeriel: mk(['고블릿 스쿼트 6kg 3×10','RDL 20kg 3×12','덤벨 벤치 6kg 3×12','시티드 로우 15kg 3×12','플랭크 3×40초']) },
+      { key:'wo_2026_3_12', memo:'성호: 체감 난이도 하 · 피로 없음 / 수면 8h\n승혜: 체감 난이도 상 · 피로 약간 있음 / 수면 8.5h',
+        sungho: mk(['실내 달리기 2.72km(30분), 경사도 2']),
+        yeriel: mk(['스텝밀(천국의 계단) — 레벨 3 5분 워밍업','레벨 6 10분','레벨 4 5분','레벨 6 5분','러닝머신 속도 4로 걷기 5분 (총 1320계단)']) },
+      { key:'wo_2026_3_15', memo:'성호: 체감 난이도 중상 · 피로 없음 / 수면 8h\n승혜: 체감 난이도 중상 · 피로 약간 있음 / 수면 8h',
+        sungho: mk(['고블릿 스쿼트 40kg 3×10','RDL 40kg 3×10','벤치프레스 40kg 3×10','시티드 로우 25kg 3×10']),
+        yeriel: mk(['고블릿 스쿼트 6kg 3×10','RDL 20kg 3×12','덤벨 벤치 6kg 3×12','시티드 로우 15kg 3×12','플랭크 3×40초']) }
+    ];
+    let done = 0;
+    bulk.forEach(d => {
+      const saveData = { subject:'workout', type:'day', dateKey:d.key, id:d.key, memo:d.memo, sungho:d.sungho, yeriel:d.yeriel, created:new Date().toISOString() };
+      fsDB.collection('entries').doc(d.key).set(saveData).then(() => {
+        done++;
+        if (done === bulk.length) {
+          localStorage.setItem('wo_bulk_done', '1');
+          setSyncStatus('✅ 운동 데이터 8일치 입력 완료!', '#8A9E54');
+          console.log('운동 데이터 일괄 입력 완료');
+        }
+      }).catch(e => console.error('wo bulk error:', d.key, e));
+    });
+  }, 3000);
+  // === 임시 끝 ===
 }
 
 function getDB() { return appData; }
