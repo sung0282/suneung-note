@@ -3627,16 +3627,38 @@ const LIFE_COLORS = { foods: 'var(--foods)', workout: 'var(--workout)', travel: 
 
 let lifeCatFilter = {}; // { foods: '한식', travel: null } — null이면 전체
 let lifeSortByRating = {}; // { foods: true } — 별점순 모드
+let lifeYearMode = {}; // { foods: true } — 연도별 모드
+let lifeYearFilter = {}; // { foods: 2026, ... } — 선택된 연도
 
 function setLifeCatFilter(tab, cat) {
   lifeCatFilter[tab] = cat;
   lifeSortByRating[tab] = false;
+  lifeYearMode[tab] = false;
+  lifeYearFilter[tab] = null;
   renderLifePage(tab);
 }
 
 function setLifeSortRating(tab) {
   lifeSortByRating[tab] = true;
   lifeCatFilter[tab] = null;
+  lifeYearMode[tab] = false;
+  lifeYearFilter[tab] = null;
+  renderLifePage(tab);
+}
+
+function setLifeYearMode(tab) {
+  lifeYearMode[tab] = !lifeYearMode[tab];
+  lifeYearFilter[tab] = null;
+  lifeCatFilter[tab] = null;
+  lifeSortByRating[tab] = false;
+  renderLifePage(tab);
+}
+
+function setLifeYearFilter(tab, year) {
+  lifeYearFilter[tab] = year;
+  lifeYearMode[tab] = true;
+  lifeCatFilter[tab] = null;
+  lifeSortByRating[tab] = false;
   renderLifePage(tab);
 }
 
@@ -3658,20 +3680,40 @@ function renderLifePage(tab) {
   const cats = LIFE_CATEGORIES[tab] || [];
   const activeCat = lifeCatFilter[tab] || null;
   const isSortRating = !!lifeSortByRating[tab];
+  const isYearMode = !!lifeYearMode[tab];
+  const activeYear = lifeYearFilter[tab] || null;
+  // 연도별로 엔트리 집계 (2024년 이후)
+  const yearCounts = {};
+  allEntries.forEach(e => {
+    if (!e.created) return;
+    const y = new Date(e.created).getFullYear();
+    if (y >= 2024) yearCounts[y] = (yearCounts[y] || 0) + 1;
+  });
+  const yearList = Object.keys(yearCounts).map(Number).sort((a, b) => b - a);
+  const isDefault = !activeCat && !isSortRating && !isYearMode;
   const catBtns = `<div class="life-cat-filter">
-    <button class="life-cat-btn${!activeCat && !isSortRating ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
+    <button class="life-cat-btn${isDefault ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
+    <button class="life-cat-btn${isYearMode ? ' active' : ''}" onclick="setLifeYearMode('${tab}')">📅 연도별</button>
     ${tab === 'foods' ? `<button class="life-cat-btn${isSortRating ? ' active' : ''}" onclick="setLifeSortRating('${tab}')">⭐ 별점순</button>` : ''}
     ${cats.map(c => {
       const count = allEntries.filter(e => e.category === c).length;
       if (count === 0) return '';
       return `<button class="life-cat-btn${activeCat === c ? ' active' : ''}" onclick="setLifeCatFilter('${tab}','${c}')">${esc(c)} ${count}</button>`;
     }).join('')}
-  </div>`;
+  </div>
+  ${isYearMode && yearList.length > 0 ? `<div class="life-cat-filter" style="margin-top:-4px;">
+    ${yearList.map(y => `<button class="life-cat-btn${activeYear === y ? ' active' : ''}" onclick="setLifeYearFilter('${tab}',${y})">${y}년 ${yearCounts[y]}</button>`).join('')}
+  </div>` : ''}`;
 
   // 필터/정렬 적용
   let entries = activeCat ? allEntries.filter(e => e.category === activeCat) : allEntries;
   if (isSortRating) {
     entries = [...allEntries].filter(e => e.rating != null).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+  if (isYearMode) {
+    entries = activeYear
+      ? allEntries.filter(e => e.created && new Date(e.created).getFullYear() === activeYear)
+      : allEntries.filter(e => e.created && new Date(e.created).getFullYear() >= 2024);
   }
 
   const isReorder = lifeReorderMode[tab];
@@ -3679,7 +3721,7 @@ function renderLifePage(tab) {
   const cardsHtml = entries.length === 0
     ? `<div class="no-entries" style="padding:20px 0;"><p style="font-size:13px;">'${esc(activeCat)}' 카테고리에 글이 없어요</p></div>`
     : entries.map((e, idx) => {
-    const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+    const dateStr = e.created ? new Date(e.created).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
     const catTag = e.category ? `<span class="ec-tag">${esc(e.category)}</span>` : '';
     const thumbSrc = (e.images && e.images[0]) || e.image || null;
     const imgThumb = thumbSrc ? `<div style="width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;"><img src="${thumbSrc}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
