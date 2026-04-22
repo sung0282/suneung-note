@@ -3702,7 +3702,7 @@ function renderLifePage(tab) {
     }).join('')}
   </div>
   ${isYearMode && yearList.length > 0 ? `<div class="life-cat-filter" style="margin-top:-4px;">
-    ${yearList.map(y => `<button class="life-cat-btn${activeYear === y ? ' active' : ''}" onclick="setLifeYearFilter('${tab}',${y})">${y}년 ${yearCounts[y]}</button>`).join('')}
+    ${yearList.map(y => `<button class="life-cat-btn${activeYear === y ? ' active' : ''}" onclick="setLifeYearFilter('${tab}',${y})">${y}년(${yearCounts[y]})</button>`).join('')}
   </div>` : ''}`;
 
   // 필터/정렬 적용
