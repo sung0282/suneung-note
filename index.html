@@ -3638,7 +3638,19 @@ function setLifeCatFilter(tab, cat) {
   renderLifePage(tab);
 }
 
+let lifeRatingFilter = {}; // { foods: 3 } — 선택된 별 개수 (1~5), null이면 전체
+
 function setLifeSortRating(tab) {
+  lifeSortByRating[tab] = !lifeSortByRating[tab];
+  lifeRatingFilter[tab] = null;
+  lifeCatFilter[tab] = null;
+  lifeYearMode[tab] = false;
+  lifeYearFilter[tab] = null;
+  renderLifePage(tab);
+}
+
+function setLifeRatingFilter(tab, star) {
+  lifeRatingFilter[tab] = star;
   lifeSortByRating[tab] = true;
   lifeCatFilter[tab] = null;
   lifeYearMode[tab] = false;
@@ -3680,6 +3692,7 @@ function renderLifePage(tab) {
   const cats = LIFE_CATEGORIES[tab] || [];
   const activeCat = lifeCatFilter[tab] || null;
   const isSortRating = !!lifeSortByRating[tab];
+  const activeRatingStar = lifeRatingFilter[tab] || null;
   const isYearMode = !!lifeYearMode[tab];
   const activeYear = lifeYearFilter[tab] || null;
   // 연도별로 엔트리 집계 (2024년 이후)
@@ -3690,6 +3703,13 @@ function renderLifePage(tab) {
     if (y >= 2024) yearCounts[y] = (yearCounts[y] || 0) + 1;
   });
   const yearList = Object.keys(yearCounts).map(Number).sort((a, b) => b - a);
+  // 별점 그룹별 집계 (floor 기준 1~5)
+  const ratingCounts = {};
+  allEntries.forEach(e => {
+    if (e.rating == null) return;
+    const g = e.rating === 5 ? 5 : Math.floor(e.rating);
+    ratingCounts[g] = (ratingCounts[g] || 0) + 1;
+  });
   const isDefault = !activeCat && !isSortRating && !isYearMode;
   const catBtns = `<div class="life-cat-filter">
     <button class="life-cat-btn${isDefault ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
@@ -3703,12 +3723,21 @@ function renderLifePage(tab) {
   </div>
   ${isYearMode && yearList.length > 0 ? `<div class="life-cat-filter" style="margin-top:-4px;">
     ${yearList.map(y => `<button class="life-cat-btn${activeYear === y ? ' active' : ''}" onclick="setLifeYearFilter('${tab}',${y})">${y}년(${yearCounts[y]})</button>`).join('')}
+  </div>` : ''}
+  ${isSortRating && Object.keys(ratingCounts).length > 0 ? `<div class="life-cat-filter" style="margin-top:-4px;">
+    ${[5,4,3,2,1].filter(n => ratingCounts[n]).map(n => `<button class="life-cat-btn${activeRatingStar === n ? ' active' : ''}" onclick="setLifeRatingFilter('${tab}',${n})">${'★'.repeat(n)}(${ratingCounts[n]})</button>`).join('')}
   </div>` : ''}`;
 
   // 필터/정렬 적용
   let entries = activeCat ? allEntries.filter(e => e.category === activeCat) : allEntries;
   if (isSortRating) {
-    entries = [...allEntries].filter(e => e.rating != null).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const base = [...allEntries].filter(e => e.rating != null);
+    if (activeRatingStar) {
+      entries = base.filter(e => (e.rating === 5 ? 5 : Math.floor(e.rating)) === activeRatingStar)
+                    .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else {
+      entries = base.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
   }
   if (isYearMode) {
     entries = activeYear
