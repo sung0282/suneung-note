@@ -238,6 +238,25 @@
     }
     .life-cat-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
 
+    /* ─── STAR RATING ─── */
+    .star-rating-row { display: flex; align-items: center; gap: 4px; margin: 6px 0 2px; }
+    .star-input-wrap { display: flex; flex-direction: row-reverse; gap: 2px; }
+    .star-input-wrap input[type=radio] { display: none; }
+    .star-input-wrap label {
+      font-size: 26px; cursor: pointer; color: #d4cdb8; transition: color 0.12s; line-height: 1;
+      user-select: none; -webkit-user-select: none;
+    }
+    .star-input-wrap input[type=radio]:checked ~ label,
+    .star-input-wrap label:hover,
+    .star-input-wrap label:hover ~ label { color: #e8b84b; }
+    .star-display { display: inline-flex; gap: 1px; }
+    .star-display .s { font-size: 16px; line-height: 1; }
+    .star-display .s.full { color: #e8b84b; }
+    .star-display .s.half { position: relative; color: #d4cdb8; }
+    .star-display .s.half::before { content: '★'; position: absolute; left: 0; width: 50%; overflow: hidden; color: #e8b84b; }
+    .star-display .s.empty { color: #d4cdb8; }
+    .star-score-text { font-size: 12px; color: var(--text2); margin-left: 4px; }
+
     /* ─── PLANNER (redesigned) ─── */
     .planner-cal {
       background: var(--surface); border-radius: 14px;
@@ -3590,6 +3609,16 @@ function renderWoSheet() {
 // LIFE CRUD
 // ══════════════════════════════════════════
 
+function renderStars(rating) {
+  let html = '<span class="star-display">';
+  for (let i = 1; i <= 5; i++) {
+    if (rating >= i) html += '<span class="s full">★</span>';
+    else if (rating >= i - 0.5) html += '<span class="s half">★</span>';
+    else html += '<span class="s empty">★</span>';
+  }
+  return html + '</span>';
+}
+
 const LIFE_CATEGORIES = {
   foods: ['한식', '양식', '일식', '중식', '커피', '디저트', '기타'],
   workout: ['헬스', '러닝', '홈트', '스트레칭', '기타'],
@@ -3601,9 +3630,17 @@ const LIFE_ICONS = { foods: '🍽', workout: '💪', travel: '✈️' };
 const LIFE_COLORS = { foods: 'var(--foods)', workout: 'var(--workout)', travel: 'var(--travel)' };
 
 let lifeCatFilter = {}; // { foods: '한식', travel: null } — null이면 전체
+let lifeSortByRating = {}; // { foods: true } — 별점순 모드
 
 function setLifeCatFilter(tab, cat) {
   lifeCatFilter[tab] = cat;
+  lifeSortByRating[tab] = false;
+  renderLifePage(tab);
+}
+
+function setLifeSortRating(tab) {
+  lifeSortByRating[tab] = true;
+  lifeCatFilter[tab] = null;
   renderLifePage(tab);
 }
 
@@ -3624,8 +3661,10 @@ function renderLifePage(tab) {
   // 카테고리 필터 버튼 생성
   const cats = LIFE_CATEGORIES[tab] || [];
   const activeCat = lifeCatFilter[tab] || null;
+  const isSortRating = !!lifeSortByRating[tab];
   const catBtns = `<div class="life-cat-filter">
-    <button class="life-cat-btn${!activeCat ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
+    <button class="life-cat-btn${!activeCat && !isSortRating ? ' active' : ''}" onclick="setLifeCatFilter('${tab}',null)">전체</button>
+    ${tab === 'foods' ? `<button class="life-cat-btn${isSortRating ? ' active' : ''}" onclick="setLifeSortRating('${tab}')">⭐ 별점순</button>` : ''}
     ${cats.map(c => {
       const count = allEntries.filter(e => e.category === c).length;
       if (count === 0) return '';
@@ -3633,8 +3672,11 @@ function renderLifePage(tab) {
     }).join('')}
   </div>`;
 
-  // 필터 적용
-  const entries = activeCat ? allEntries.filter(e => e.category === activeCat) : allEntries;
+  // 필터/정렬 적용
+  let entries = activeCat ? allEntries.filter(e => e.category === activeCat) : allEntries;
+  if (isSortRating) {
+    entries = [...allEntries].filter(e => e.rating != null).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
 
   const isReorder = lifeReorderMode[tab];
   container.className = isReorder ? 'life-reorder-on' : '';
@@ -3653,7 +3695,7 @@ function renderLifePage(tab) {
         <div style="flex:1;min-width:0;">
           <div class="ec-header"><span class="ec-title">${esc(e.title || '제목 없음')}</span><span class="ec-date">${dateStr}</span></div>
           ${e.memo ? `<div class="ec-preview">${esc(e.memo)}</div>` : ''}
-          ${catTag ? `<div class="ec-tags">${catTag}</div>` : ''}
+          <div class="ec-tags">${catTag}${tab === 'foods' && e.rating != null ? `<span style="font-size:12px;color:#e8b84b;letter-spacing:-1px;">${renderStars(e.rating)}</span><span style="font-size:11px;color:var(--text2);margin-left:2px;">${e.rating}</span>` : ''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">${upBtn}${dnBtn}</div>
       </div>
@@ -3727,6 +3769,17 @@ function lifeForm(type, data) {
     </div>
     <div class="form-field"><label class="form-label">메모</label>
       <textarea class="form-textarea large" id="f-memo" placeholder="메모를 입력하세요">${esc(data?.memo||'')}</textarea></div>
+    ${type === 'foods' ? `<div class="form-field"><label class="form-label">별점</label>
+      <div class="star-input-wrap" id="f-star-wrap">
+        ${[10,9,8,7,6,5,4,3,2,1].map(n => {
+          const val = n / 2;
+          const label = n % 2 === 0 ? '★' : '⯨';
+          const checked = (data?.rating === val) ? 'checked' : '';
+          return `<input type="radio" name="f-star" id="f-star-${n}" value="${val}" ${checked}><label for="f-star-${n}" title="${val}점" style="font-size:${n%2===0?'26':'22'}px;opacity:${n%2===0?'1':'0.7'}">${n%2===0?'★':'◐'}</label>`;
+        }).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;">★ 전체 / ◐ 반 별 (0.5점 단위)</div>
+    </div>` : ''}
     <button class="form-submit" style="background:${LIFE_COLORS[type]};color:#fff;border:none;" onclick="submitLife('${type}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
 
@@ -3737,11 +3790,14 @@ function submitLife(type, editId) {
   // 새 엔트리에 order 자동 부여 (기존 최대값 + 1)
   const existingEntries = getDB().life[type] || [];
   const maxOrder = existingEntries.reduce((max, e) => Math.max(max, typeof e.order === 'number' ? e.order : -1), -1);
+  const starEl = document.querySelector('input[name="f-star"]:checked');
+  const rating = starEl ? parseFloat(starEl.value) : null;
   const entry = {
     title,
     category: v('f-category'),
     images: [...pendingImages],
     memo: v('f-memo').trim(),
+    ...(rating !== null ? { rating } : {}),
     ...(editId ? {} : { order: maxOrder + 1 })
   };
   pendingImages = [];
@@ -3767,6 +3823,7 @@ function openLifeDetail(type, id) {
     ${field('제목', entry.title)}
     ${imgHtml}
     ${field('메모', entry.memo)}
+    ${type === 'foods' && entry.rating ? `<div class="detail-field"><div class="detail-label">별점</div><div class="detail-value">${renderStars(entry.rating)} <span class="star-score-text">${entry.rating} / 5</span></div></div>` : ''}
     ${field('등록일', new Date(entry.created).toLocaleDateString('ko-KR'))}
     <div class="detail-actions">
       <button class="btn-edit" onclick="openAddLife('${type}','${entry.id}')">수정</button>
