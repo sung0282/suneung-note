@@ -239,22 +239,18 @@
     .life-cat-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
 
     /* ─── STAR RATING ─── */
-    .star-rating-row { display: flex; align-items: center; gap: 4px; margin: 6px 0 2px; }
-    .star-input-wrap { display: flex; flex-direction: row-reverse; gap: 2px; }
-    .star-input-wrap input[type=radio] { display: none; }
-    .star-input-wrap label {
-      font-size: 26px; cursor: pointer; color: #d4cdb8; transition: color 0.12s; line-height: 1;
-      user-select: none; -webkit-user-select: none;
-    }
-    .star-input-wrap input[type=radio]:checked ~ label,
-    .star-input-wrap label:hover,
-    .star-input-wrap label:hover ~ label { color: #e8b84b; }
-    .star-display { display: inline-flex; gap: 1px; }
-    .star-display .s { font-size: 16px; line-height: 1; }
+    .star-picker { display: flex; gap: 4px; margin-top: 4px; }
+    .sp-star { font-size: 38px; line-height: 1; cursor: pointer; position: relative; color: #d4cdb8;
+      user-select: none; -webkit-user-select: none; transition: color 0.08s; }
+    .sp-star.full { color: #e8b84b; }
+    .sp-star.half { color: #d4cdb8; }
+    .sp-star.half::before { content: '★'; position: absolute; left: 0; top: 0; width: 50%; overflow: hidden; color: #e8b84b; }
+    .star-picker-lbl { font-size: 12px; color: var(--text2); margin-top: 6px; }
+    .star-display { display: inline-flex; gap: 0px; }
+    .star-display .s { font-size: 15px; line-height: 1; position: relative; color: #d4cdb8; }
     .star-display .s.full { color: #e8b84b; }
-    .star-display .s.half { position: relative; color: #d4cdb8; }
-    .star-display .s.half::before { content: '★'; position: absolute; left: 0; width: 50%; overflow: hidden; color: #e8b84b; }
-    .star-display .s.empty { color: #d4cdb8; }
+    .star-display .s.half { color: #d4cdb8; }
+    .star-display .s.half::before { content: '★'; position: absolute; left: 0; top: 0; width: 50%; overflow: hidden; color: #e8b84b; }
     .star-score-text { font-size: 12px; color: var(--text2); margin-left: 4px; }
 
     /* ─── PLANNER (redesigned) ─── */
@@ -3739,12 +3735,68 @@ function lifeReorder(tab, id, direction) {
   renderLifePage(tab);
 }
 
+function initStarPicker(initialRating) {
+  const picker = document.getElementById('f-star-picker');
+  const input = document.getElementById('f-rating-val');
+  const lbl = document.getElementById('f-star-lbl');
+  if (!picker) return;
+  let current = initialRating || 0;
+
+  function getVal(clientX) {
+    const hoveredEl = document.elementFromPoint(clientX, picker.getBoundingClientRect().top + 10);
+    const star = hoveredEl ? hoveredEl.closest('.sp-star') : null;
+    if (!star) return null;
+    const rect = star.getBoundingClientRect();
+    return (clientX - rect.left) < rect.width / 2 ? parseInt(star.dataset.i) - 0.5 : parseInt(star.dataset.i);
+  }
+
+  function draw(rating) {
+    picker.querySelectorAll('.sp-star').forEach((s, i) => {
+      const n = i + 1;
+      s.className = 'sp-star' + (rating >= n ? ' full' : rating >= n - 0.5 ? ' half' : '');
+    });
+    if (lbl) lbl.textContent = rating ? `${rating} / 5점` : '별을 눌러 평점을 선택하세요';
+  }
+
+  picker.addEventListener('mousemove', e => {
+    const star = e.target.closest('.sp-star');
+    if (!star) return;
+    const rect = star.getBoundingClientRect();
+    draw((e.clientX - rect.left) < rect.width / 2 ? parseInt(star.dataset.i) - 0.5 : parseInt(star.dataset.i));
+  });
+  picker.addEventListener('mouseleave', () => draw(current));
+  picker.addEventListener('click', e => {
+    const star = e.target.closest('.sp-star');
+    if (!star) return;
+    const rect = star.getBoundingClientRect();
+    current = (e.clientX - rect.left) < rect.width / 2 ? parseInt(star.dataset.i) - 0.5 : parseInt(star.dataset.i);
+    if (input) input.value = current;
+    draw(current);
+  });
+  picker.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+  picker.addEventListener('touchend', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    const star = el ? el.closest('.sp-star') : null;
+    if (!star) return;
+    const rect = star.getBoundingClientRect();
+    current = (t.clientX - rect.left) < rect.width / 2 ? parseInt(star.dataset.i) - 0.5 : parseInt(star.dataset.i);
+    if (input) input.value = current;
+    draw(current);
+  }, { passive: false });
+
+  draw(current);
+}
+
 function openAddLife(type, editId) {
   if (editId) {
     const entry = (getDB().life[type] || []).find(e => e.id === editId);
     openModal(LIFE_LABELS[type] + ' 수정', lifeForm(type, entry));
+    if (type === 'foods') initStarPicker(entry?.rating || 0);
   } else {
     openModal(LIFE_LABELS[type] + ' 추가', lifeForm(type, null));
+    if (type === 'foods') initStarPicker(0);
   }
 }
 
@@ -3770,15 +3822,15 @@ function lifeForm(type, data) {
     <div class="form-field"><label class="form-label">메모</label>
       <textarea class="form-textarea large" id="f-memo" placeholder="메모를 입력하세요">${esc(data?.memo||'')}</textarea></div>
     ${type === 'foods' ? `<div class="form-field"><label class="form-label">별점</label>
-      <div class="star-input-wrap" id="f-star-wrap">
-        ${[10,9,8,7,6,5,4,3,2,1].map(n => {
-          const val = n / 2;
-          const label = n % 2 === 0 ? '★' : '⯨';
-          const checked = (data?.rating === val) ? 'checked' : '';
-          return `<input type="radio" name="f-star" id="f-star-${n}" value="${val}" ${checked}><label for="f-star-${n}" title="${val}점" style="font-size:${n%2===0?'26':'22'}px;opacity:${n%2===0?'1':'0.7'}">${n%2===0?'★':'◐'}</label>`;
-        }).join('')}
+      <div class="star-picker" id="f-star-picker">
+        <span class="sp-star" data-i="1">★</span>
+        <span class="sp-star" data-i="2">★</span>
+        <span class="sp-star" data-i="3">★</span>
+        <span class="sp-star" data-i="4">★</span>
+        <span class="sp-star" data-i="5">★</span>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-top:4px;">★ 전체 / ◐ 반 별 (0.5점 단위)</div>
+      <input type="hidden" id="f-rating-val" value="${data?.rating ?? ''}">
+      <div class="star-picker-lbl" id="f-star-lbl">${data?.rating ? data.rating + ' / 5점' : '별을 눌러 평점을 선택하세요'}</div>
     </div>` : ''}
     <button class="form-submit" style="background:${LIFE_COLORS[type]};color:#fff;border:none;" onclick="submitLife('${type}','${data?.id||''}')">${data ? '수정하기' : '저장하기'}</button>`;
 }
@@ -3790,8 +3842,8 @@ function submitLife(type, editId) {
   // 새 엔트리에 order 자동 부여 (기존 최대값 + 1)
   const existingEntries = getDB().life[type] || [];
   const maxOrder = existingEntries.reduce((max, e) => Math.max(max, typeof e.order === 'number' ? e.order : -1), -1);
-  const starEl = document.querySelector('input[name="f-star"]:checked');
-  const rating = starEl ? parseFloat(starEl.value) : null;
+  const ratingInput = document.getElementById('f-rating-val');
+  const rating = ratingInput && ratingInput.value !== '' ? parseFloat(ratingInput.value) : null;
   const entry = {
     title,
     category: v('f-category'),
